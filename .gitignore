@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.egg-info/
+backend/.local-data.json
+
+# Node
+node_modules/
+frontend/dist/
+frontend/coverage/
+
+# AWS SAM
+.aws-sam/
+infra/.aws-sam/
+samconfig.local.toml
+
+# Misc
+.DS_Store
+.env
+.env.*
+!.env.example
