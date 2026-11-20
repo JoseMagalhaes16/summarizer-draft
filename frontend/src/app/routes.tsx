@@ -5,6 +5,13 @@ import { NotePage } from '../features/notes/NotePage';
 import { NotesPage } from '../features/notes/NotesPage';
 import { TemplatesPage } from '../features/templates/TemplatesPage';
 import { TemplateEditorPage } from '../features/templates/TemplateEditorPage';
+import { EvalsLayout } from '../features/evals/EvalsLayout';
+import { RunsPage } from '../features/evals/RunsPage';
+import { NewRunPage } from '../features/evals/NewRunPage';
+import { RunDetailPage } from '../features/evals/RunDetailPage';
+import { ComparePage } from '../features/evals/ComparePage';
+import { CasesPage } from '../features/evals/CasesPage';
+import { CaseDetailPage } from '../features/evals/CaseDetailPage';
 import { EmptyState } from '../components/ui';
 
 function NotFound() {
@@ -27,6 +34,18 @@ export const routes: RouteObject[] = [
       { path: 'templates', element: <TemplatesPage /> },
       { path: 'templates/new', element: <TemplateEditorPage /> },
       { path: 'templates/:id', element: <TemplateEditorPage /> },
+      {
+        path: 'evals',
+        element: <EvalsLayout />,
+        children: [
+          { index: true, element: <RunsPage /> },
+          { path: 'new', element: <NewRunPage /> },
+          { path: 'runs/:id', element: <RunDetailPage /> },
+          { path: 'compare', element: <ComparePage /> },
+          { path: 'cases', element: <CasesPage /> },
+          { path: 'cases/:id', element: <CaseDetailPage /> },
+        ],
+      },
       { path: '*', element: <NotFound /> },
     ],
   },

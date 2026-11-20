@@ -160,6 +160,8 @@ export interface Health {
   status: string;
   llm_provider: string;
   storage: string;
+  /** Optional: false when this server won't start evaluation runs. */
+  evals_allow_trigger?: boolean;
 }
 
 export const MAX_TRANSCRIPT_CHARS = 200_000;

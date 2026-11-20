@@ -1,9 +1,11 @@
 import { http, HttpResponse, delay } from 'msw';
 import { MockApiError, MockEngine, type MockOptions } from './engine';
+import { EvalMockEngine, type EvalMockOptions } from './evalEngine';
 
 /** msw request handlers backed by an in-memory MockEngine (spec section 5). */
-export function createHandlers(opts?: MockOptions & { latencyMs?: number }) {
+export function createHandlers(opts?: MockOptions & EvalMockOptions & { latencyMs?: number }) {
   const engine = new MockEngine(opts);
+  const evals = new EvalMockEngine(opts);
   const latency = opts?.latencyMs ?? 120;
 
   async function run<T>(fn: () => T, status = 200): Promise<Response> {
@@ -78,6 +80,23 @@ export function createHandlers(opts?: MockOptions & { latencyMs?: number }) {
       return run(() => engine.regenerateNote(String(params.id), b), 202);
     }),
     http.delete('*/v1/notes/:id', ({ params }) => run(() => engine.deleteNote(String(params.id)))),
+    http.get('*/v1/evals/cases', () => run(() => evals.listCases())),
+    http.get('*/v1/evals/cases/:id', ({ params }) => run(() => evals.getCase(String(params.id)))),
+    http.get('*/v1/evals/runs', () => run(() => evals.listRuns())),
+    http.post('*/v1/evals/runs', async ({ request }) => {
+      try {
+        const b = await body(request);
+        return run(() => evals.createRun(b), 202);
+      } catch (e) {
+        return run(() => { throw e; });
+      }
+    }),
+    http.get('*/v1/evals/runs/:id', ({ params }) => run(() => evals.getRun(String(params.id)))),
+    http.get('*/v1/evals/runs/:id/results', ({ params }) => run(() => evals.getResults(String(params.id)))),
+    http.get('*/v1/evals/compare', ({ request }) => {
+      const u = new URL(request.url);
+      return run(() => evals.compare(u.searchParams.get('base'), u.searchParams.get('candidate')));
+    }),
   ];
-  return { handlers, engine };
+  return { handlers, engine, evals };
 }
