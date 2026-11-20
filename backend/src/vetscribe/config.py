@@ -23,6 +23,17 @@ def _float(env: Mapping[str, str], key: str, default: float) -> float:
     return float(raw) if raw else default
 
 
+def _bool(env: Mapping[str, str], key: str, default: bool) -> bool:
+    raw = env.get(key, "").strip().lower()
+    if not raw:
+        return default
+    if raw in ("1", "true", "yes", "on"):
+        return True
+    if raw in ("0", "false", "no", "off"):
+        return False
+    raise ValueError(f"{key} must be a boolean, got {raw!r}")
+
+
 def _choice(env: Mapping[str, str], key: str, default: str, allowed: tuple[str, ...]) -> str:
     value = env.get(key, "").strip().lower() or default
     if value not in allowed:
@@ -51,13 +62,22 @@ class Settings:
     default_clinic_id: str = "default"
     cors_allow_origin: str = "*"
     log_level: str = "INFO"
+    # Evaluation subsystem (docs/design/eval-spec.md)
+    eval_store: str = "file"
+    eval_results_dir: str = ""
+    eval_cases_dir: str = ""
+    eval_s3_bucket: str = ""
+    eval_s3_prefix: str = "evals/"
+    evals_allow_trigger: bool = True
+    eval_price_table_json: str = ""
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
         e = os.environ if env is None else env
         mode = _choice(e, "BEDROCK_STRUCTURED_MODE", "output_config", ("output_config", "tool"))
+        app_env = _choice(e, "APP_ENV", "local", ("local", "aws"))
         return cls(
-            app_env=_choice(e, "APP_ENV", "local", ("local", "aws")),
+            app_env=app_env,
             llm_provider=_choice(e, "LLM_PROVIDER", "mock", ("mock", "bedrock")),
             storage_backend=_choice(e, "STORAGE_BACKEND", "memory", ("memory", "dynamodb")),
             local_data_file=e.get("LOCAL_DATA_FILE", ""),
@@ -76,6 +96,13 @@ class Settings:
             default_clinic_id=e.get("DEFAULT_CLINIC_ID", "").strip() or "default",
             cors_allow_origin=e.get("CORS_ALLOW_ORIGIN", "").strip() or "*",
             log_level=e.get("LOG_LEVEL", "").strip().upper() or "INFO",
+            eval_store=_choice(e, "EVAL_STORE", "file", ("file", "s3")),
+            eval_results_dir=e.get("EVAL_RESULTS_DIR", "").strip(),
+            eval_cases_dir=e.get("EVAL_CASES_DIR", "").strip(),
+            eval_s3_bucket=e.get("EVAL_S3_BUCKET", "").strip(),
+            eval_s3_prefix=e.get("EVAL_S3_PREFIX", "").strip() or "evals/",
+            evals_allow_trigger=_bool(e, "EVALS_ALLOW_TRIGGER", app_env == "local"),
+            eval_price_table_json=e.get("EVAL_PRICE_TABLE_JSON", "").strip(),
         )
 
     def with_overrides(self, **changes: Any) -> Settings:

@@ -171,6 +171,8 @@ class BedrockNoteGenerator:
         attempts = 2 if tool_mode else 1
         in_tok = out_tok = 0
         raw: dict[str, Any] | None = None
+        stop_reason: str | None = None
+        made = 0
 
         for attempt in range(1, attempts + 1):
             if attempt > 1 and deadline is not None:
@@ -179,6 +181,8 @@ class BedrockNoteGenerator:
                     logger.warning("bedrock_retry_skipped_budget", extra={"budget_s": int(budget)})
                     break
             payload = self._invoke(body)
+            made += 1
+            stop_reason = payload.get("stop_reason")
             usage = payload.get("usage") or {}
             in_tok += int(usage.get("input_tokens", 0))
             out_tok += int(usage.get("output_tokens", 0))
@@ -211,4 +215,6 @@ class BedrockNoteGenerator:
                 output_tokens=out_tok,
                 latency_ms=latency_ms,
             ),
+            stop_reason=stop_reason,
+            attempts=max(made, 1),
         )

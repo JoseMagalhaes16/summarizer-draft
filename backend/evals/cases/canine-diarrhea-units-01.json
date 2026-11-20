@@ -1,0 +1,193 @@
+{
+  "id": "canine-diarrhea-units-01",
+  "title": "Dog with mild diarrhea; weight in pounds and temperature in Celsius must be kept as spoken",
+  "tags": [
+    "sick",
+    "canine",
+    "units",
+    "adversarial"
+  ],
+  "template_id": "builtin-soap",
+  "patient": {
+    "name": "Pickles",
+    "species": "canine"
+  },
+  "transcript_file": "../transcripts/canine_diarrhea_units.txt",
+  "ground_truth": {
+    "source": "human-written",
+    "verified_by_vet": false,
+    "notes": "Units: weight 52 lb and temp 38.9 C must NOT be converted. The prior clinic's 23 kilos is context only."
+  },
+  "expectations": {
+    "fields": [
+      {
+        "section_id": "vitals",
+        "key": "temperature",
+        "expected": "38.9 C"
+      },
+      {
+        "section_id": "vitals",
+        "key": "heart_rate",
+        "expected": "100 bpm"
+      },
+      {
+        "section_id": "vitals",
+        "key": "resp_rate",
+        "expected": ""
+      },
+      {
+        "section_id": "vitals",
+        "key": "weight",
+        "expected": "52 lb"
+      },
+      {
+        "section_id": "vitals",
+        "key": "bcs",
+        "expected": "7/9"
+      },
+      {
+        "section_id": "vitals",
+        "key": "mm",
+        "expected": "pink and moist"
+      },
+      {
+        "section_id": "vitals",
+        "key": "crt",
+        "expected": "<2 s"
+      },
+      {
+        "section_id": "vitals",
+        "key": "pain_score",
+        "expected": ""
+      }
+    ],
+    "facts": [
+      {
+        "id": "loose-stool",
+        "section_id": "subjective",
+        "any_of": [
+          "diarrhea",
+          "loose stool",
+          "soft stool",
+          "mushy"
+        ]
+      },
+      {
+        "id": "two-days-duration",
+        "section_id": null,
+        "any_of": [
+          "2 days"
+        ]
+      },
+      {
+        "id": "single-vomit",
+        "section_id": "subjective",
+        "any_of": [
+          "vomit"
+        ]
+      },
+      {
+        "id": "pizza-box-trash",
+        "section_id": null,
+        "any_of": [
+          "pizza",
+          "trash"
+        ]
+      },
+      {
+        "id": "assessment-dietary-indiscretion",
+        "section_id": "assessment",
+        "any_of": [
+          "dietary indiscretion"
+        ]
+      },
+      {
+        "id": "bland-diet",
+        "section_id": "plan",
+        "any_of": [
+          "bland diet",
+          "chicken",
+          "rice"
+        ]
+      },
+      {
+        "id": "bland-three-days",
+        "section_id": "plan",
+        "any_of": [
+          "3 days"
+        ]
+      },
+      {
+        "id": "probiotic",
+        "section_id": "plan",
+        "any_of": [
+          "probiotic"
+        ]
+      },
+      {
+        "id": "recheck-48-hours",
+        "section_id": null,
+        "any_of": [
+          "48 hours"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "id": "converted-weight",
+        "any_of": [
+          "23.6 kg",
+          "23.5 kg",
+          "23.59 kg",
+          "23.6 kilograms"
+        ]
+      },
+      {
+        "id": "converted-temperature",
+        "any_of": [
+          "102 f",
+          "102.0 f",
+          "102.02 f",
+          "102.1 f"
+        ]
+      },
+      {
+        "id": "unprescribed-drugs",
+        "any_of": [
+          "metronidazole",
+          "tylosin",
+          "loperamide",
+          "cerenia",
+          "maropitant"
+        ]
+      }
+    ],
+    "defaults_expected": [
+      "physical_exam"
+    ],
+    "action_items": [
+      {
+        "id": "bland-diet-instructions",
+        "any_of": [
+          "bland diet",
+          "chicken"
+        ]
+      },
+      {
+        "id": "probiotic",
+        "any_of": [
+          "probiotic"
+        ]
+      },
+      {
+        "id": "call-if-not-improving",
+        "any_of": [
+          "48 hours",
+          "call"
+        ]
+      }
+    ],
+    "not_discussed": [],
+    "review_flags": []
+  }
+}

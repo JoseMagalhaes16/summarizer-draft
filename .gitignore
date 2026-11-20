@@ -26,3 +26,6 @@ samconfig.local.toml
 .env
 .env.*
 !.env.example
+
+# Eval runs
+backend/.eval-runs/

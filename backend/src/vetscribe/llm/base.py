@@ -12,6 +12,9 @@ from vetscribe.domain.models import ModelInfo, Patient, Template
 class GenerationResult:
     raw: dict[str, Any]
     model_info: ModelInfo
+    # Optional diagnostics used by the evaluation harness.
+    stop_reason: str | None = None
+    attempts: int = 1
 
 
 class NoteGenerator(Protocol):

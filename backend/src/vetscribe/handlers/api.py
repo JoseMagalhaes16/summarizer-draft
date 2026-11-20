@@ -22,6 +22,8 @@ from vetscribe.domain.models import (
 )
 from vetscribe.domain.rendering import render_note_markdown, render_note_text
 from vetscribe.errors import AppError, validation_error
+from vetscribe.handlers.common import pydantic_error as _pydantic_error
+from vetscribe.handlers.evals_routes import router as evals_router
 from vetscribe.observability import logger, metrics
 
 M = TypeVar("M", bound=BaseModel)
@@ -97,7 +99,13 @@ def create_app(settings: Settings | None = None) -> APIGatewayHttpResolver:
     def health() -> Response[str]:
         s = get_container().settings
         return _json(
-            200, {"status": "ok", "llm_provider": s.llm_provider, "storage": s.storage_backend}
+            200,
+            {
+                "status": "ok",
+                "llm_provider": s.llm_provider,
+                "storage": s.storage_backend,
+                "evals_allow_trigger": s.evals_allow_trigger,
+            },
         )
 
     @app.get("/v1/templates")
@@ -173,15 +181,8 @@ def create_app(settings: Settings | None = None) -> APIGatewayHttpResolver:
         get_container().note_service.delete(clinic(), note_id)
         return _empty()
 
+    app.include_router(evals_router)
     return app
-
-
-def _pydantic_error(exc: ValidationError) -> AppError:
-    details = [
-        {"loc": [str(p) for p in e["loc"]], "message": e["msg"], "type": e["type"]}
-        for e in exc.errors()
-    ]
-    return validation_error("Request validation failed", details)
 
 
 app = create_app()

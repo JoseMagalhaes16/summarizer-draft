@@ -8,6 +8,8 @@ from typing import Any
 import boto3
 
 from vetscribe.config import Settings
+from vetscribe.evals.service import EvalService
+from vetscribe.evals.store import make_store
 from vetscribe.jobs.dispatcher import InlineThreadDispatcher, JobDispatcher, LambdaAsyncDispatcher
 from vetscribe.llm.base import NoteGenerator
 from vetscribe.llm.mock import MockNoteGenerator
@@ -25,6 +27,7 @@ class Container:
         repository: Repository | None = None,
         generator: NoteGenerator | None = None,
         dispatcher: JobDispatcher | None = None,
+        eval_service: EvalService | None = None,
     ) -> None:
         self.settings = settings
         self._lock = threading.RLock()
@@ -33,6 +36,7 @@ class Container:
         self._dispatcher = dispatcher
         self._template_service: TemplateService | None = None
         self._note_service: NoteService | None = None
+        self._eval_service = eval_service
 
     @property
     def repository(self) -> Repository:
@@ -97,6 +101,13 @@ class Container:
                     self.settings,
                 )
             return self._note_service
+
+    @property
+    def eval_service(self) -> EvalService:
+        with self._lock:
+            if self._eval_service is None:
+                self._eval_service = EvalService(self.settings, make_store(self.settings))
+            return self._eval_service
 
 
 _container: Container | None = None

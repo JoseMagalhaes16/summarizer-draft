@@ -58,7 +58,12 @@ def wait_done(container: Container, note_id: str) -> dict[str, Any]:
 
 def test_health(container: Container) -> None:
     status, body, headers = call("GET", "/v1/health")
-    assert status == 200 and body == {"status": "ok", "llm_provider": "mock", "storage": "memory"}
+    assert status == 200 and body == {
+        "status": "ok",
+        "llm_provider": "mock",
+        "storage": "memory",
+        "evals_allow_trigger": True,
+    }
     assert headers.get("Access-Control-Allow-Origin") == "*"
 
 

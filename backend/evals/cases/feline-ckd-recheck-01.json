@@ -1,0 +1,227 @@
+{
+  "id": "feline-ckd-recheck-01",
+  "title": "Cat with IRIS stage 2 CKD: 3-month recheck, stable, borderline BP",
+  "tags": [
+    "recheck",
+    "feline",
+    "renal"
+  ],
+  "template_id": "builtin-recheck",
+  "patient": {
+    "name": "Pumpkin",
+    "species": "feline"
+  },
+  "transcript_file": "../transcripts/feline_ckd_recheck.txt",
+  "ground_truth": {
+    "source": "human-written",
+    "verified_by_vet": false,
+    "notes": ""
+  },
+  "expectations": {
+    "fields": [
+      {
+        "section_id": "vitals",
+        "key": "temperature",
+        "expected": "101.5 F"
+      },
+      {
+        "section_id": "vitals",
+        "key": "heart_rate",
+        "expected": "180 bpm"
+      },
+      {
+        "section_id": "vitals",
+        "key": "resp_rate",
+        "expected": "28 breaths/min"
+      },
+      {
+        "section_id": "vitals",
+        "key": "weight",
+        "expected": "4.3 kg"
+      },
+      {
+        "section_id": "vitals",
+        "key": "bcs",
+        "expected": "5/9"
+      },
+      {
+        "section_id": "vitals",
+        "key": "mm",
+        "expected": "pink and moist"
+      },
+      {
+        "section_id": "vitals",
+        "key": "crt",
+        "expected": ""
+      },
+      {
+        "section_id": "vitals",
+        "key": "pain_score",
+        "expected": ""
+      }
+    ],
+    "facts": [
+      {
+        "id": "reason-ckd",
+        "section_id": "reason_for_recheck",
+        "any_of": [
+          "kidney",
+          "ckd",
+          "renal"
+        ]
+      },
+      {
+        "id": "on-renal-diet",
+        "section_id": "interval_history",
+        "any_of": [
+          "kidney diet",
+          "renal diet",
+          "prescription diet",
+          "diet"
+        ]
+      },
+      {
+        "id": "phosphorus-binder",
+        "section_id": null,
+        "any_of": [
+          "phosphorus binder",
+          "phosphate binder",
+          "binder"
+        ]
+      },
+      {
+        "id": "vomiting-resolved",
+        "section_id": "interval_history",
+        "any_of": [
+          "vomit"
+        ]
+      },
+      {
+        "id": "creatinine-2-4",
+        "section_id": null,
+        "any_of": [
+          "2.4"
+        ]
+      },
+      {
+        "id": "creatinine-was-2-9",
+        "section_id": null,
+        "any_of": [
+          "2.9"
+        ]
+      },
+      {
+        "id": "phosphorus-4-6",
+        "section_id": null,
+        "any_of": [
+          "4.6"
+        ]
+      },
+      {
+        "id": "sdma-17",
+        "section_id": null,
+        "any_of": [
+          "sdma"
+        ]
+      },
+      {
+        "id": "usg-1-022",
+        "section_id": null,
+        "any_of": [
+          "1.022"
+        ]
+      },
+      {
+        "id": "bp-150",
+        "section_id": null,
+        "any_of": [
+          "150 mmhg",
+          "150 mm hg",
+          "150"
+        ]
+      },
+      {
+        "id": "assessment-stage-2",
+        "section_id": "assessment",
+        "any_of": [
+          "stage 2",
+          "stage ii"
+        ]
+      },
+      {
+        "id": "assessment-stable",
+        "section_id": "assessment",
+        "any_of": [
+          "stable",
+          "improved"
+        ]
+      },
+      {
+        "id": "small-irregular-kidneys",
+        "section_id": "focused_exam",
+        "any_of": [
+          "small",
+          "irregular"
+        ]
+      },
+      {
+        "id": "weight-up",
+        "section_id": null,
+        "any_of": [
+          "200 g",
+          "0.2 kg",
+          "up from",
+          "4.1"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "id": "wrong-iris-stage",
+        "any_of": [
+          "stage 3",
+          "stage iii",
+          "stage 4",
+          "stage iv"
+        ]
+      },
+      {
+        "id": "unprescribed-drugs",
+        "any_of": [
+          "amlodipine",
+          "telmisartan",
+          "maropitant",
+          "cerenia",
+          "ondansetron",
+          "mirtazapine"
+        ]
+      }
+    ],
+    "action_items": [
+      {
+        "id": "continue-diet-binder",
+        "any_of": [
+          "diet",
+          "binder"
+        ]
+      },
+      {
+        "id": "bp-nurse-visit-4-weeks",
+        "any_of": [
+          "blood pressure",
+          "4 weeks"
+        ]
+      },
+      {
+        "id": "full-recheck-3-months",
+        "any_of": [
+          "3 months",
+          "3 month"
+        ]
+      }
+    ],
+    "not_discussed": [],
+    "defaults_expected": [],
+    "review_flags": []
+  }
+}
