@@ -17,3 +17,4 @@ Records are never deleted or rewritten. A decision that is reversed gets a new r
 | [0009](0009-frontend-react-vite-plain-css.md) | Frontend: React 19, TypeScript, Vite, and plain CSS design tokens | Accepted | 2026-11-20 |
 | [0010](0010-infrastructure-aws-sam.md) | Infrastructure as Code: AWS SAM | Accepted | 2026-11-20 |
 | [0011](0011-security-privacy-baseline.md) | Security and privacy baseline for clinical transcripts | Accepted | 2026-11-20 |
+| [0012](0012-generation-consistency-and-recovery.md) | Generation consistency (fencing token), failure recovery and item-size limits | Accepted | 2026-11-20 |
