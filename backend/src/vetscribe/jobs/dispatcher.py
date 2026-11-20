@@ -11,7 +11,7 @@ from vetscribe.observability import logger
 
 
 class JobDispatcher(Protocol):
-    def dispatch(self, note_id: str, clinic_id: str) -> None: ...
+    def dispatch(self, note_id: str, clinic_id: str, generation_id: str) -> None: ...
 
 
 class LambdaAsyncDispatcher:
@@ -23,32 +23,36 @@ class LambdaAsyncDispatcher:
         self._function_name = function_name
         self._client = client
 
-    def dispatch(self, note_id: str, clinic_id: str) -> None:
+    def dispatch(self, note_id: str, clinic_id: str, generation_id: str) -> None:
+        payload = {"note_id": note_id, "clinic_id": clinic_id, "generation_id": generation_id}
         self._client.invoke(
             FunctionName=self._function_name,
             InvocationType="Event",
-            Payload=json.dumps({"note_id": note_id, "clinic_id": clinic_id}).encode(),
+            Payload=json.dumps(payload).encode(),
         )
 
 
 class InlineThreadDispatcher:
     """Run the worker function in a daemon thread (local development / tests)."""
 
-    def __init__(self, worker: Callable[[str, str], object]) -> None:
+    def __init__(self, worker: Callable[[str, str, str], object]) -> None:
         self._worker = worker
         self.threads: list[threading.Thread] = []
 
-    def _run(self, note_id: str, clinic_id: str) -> None:
+    def _run(self, note_id: str, clinic_id: str, generation_id: str) -> None:
         try:
-            self._worker(note_id, clinic_id)
+            self._worker(note_id, clinic_id, generation_id)
         except Exception as exc:
             logger.error(
                 "inline_worker_failed", extra={"note_id": note_id, "error": type(exc).__name__}
             )
 
-    def dispatch(self, note_id: str, clinic_id: str) -> None:
+    def dispatch(self, note_id: str, clinic_id: str, generation_id: str) -> None:
         t = threading.Thread(
-            target=self._run, args=(note_id, clinic_id), name=f"worker-{note_id}", daemon=True
+            target=self._run,
+            args=(note_id, clinic_id, generation_id),
+            name=f"worker-{note_id}",
+            daemon=True,
         )
         self.threads = [x for x in self.threads if x.is_alive()]
         self.threads.append(t)

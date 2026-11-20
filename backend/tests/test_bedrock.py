@@ -191,6 +191,40 @@ def test_make_client_config() -> None:
     client = make_client(Settings(bedrock_read_timeout_s=123))
     cfg = client.meta.config
     assert cfg.read_timeout == 123
-    assert (
-        cfg.retries["mode"] == "adaptive" and cfg.retries["total_max_attempts"] == 5
-    )  # max_attempts=4 retries + 1
+    assert cfg.retries["mode"] == "adaptive" and cfg.retries["total_max_attempts"] == 2
+    assert Settings().bedrock_read_timeout_s == 240
+
+
+def _no_tool_payload() -> dict[str, Any]:
+    return {"stop_reason": "end_turn", "usage": USAGE, "content": [{"type": "text", "text": "hi"}]}
+
+
+def test_tool_mode_second_attempt_skipped_when_deadline_near(soap: Template) -> None:
+    import time
+
+    gen, stub, bodies = _setup("tool")
+    _stub(stub, _no_tool_payload())
+    with stub, pytest.raises(GenerationError) as ei:
+        # read timeout (240 s) + 30 s margin do not fit in the 100 s left
+        gen.generate(soap, "t", Patient(), deadline=time.monotonic() + 100)
+    assert ei.value.code == "INVALID_MODEL_OUTPUT" and len(bodies) == 1
+
+
+def test_tool_mode_second_attempt_runs_with_enough_budget(soap: Template) -> None:
+    import time
+
+    gen, stub, bodies = _setup("tool")
+    _stub(stub, _no_tool_payload())
+    _stub(
+        stub,
+        {
+            "stop_reason": "tool_use",
+            "usage": USAGE,
+            "content": [
+                {"type": "tool_use", "id": "1", "name": "record_clinical_note", "input": RAW}
+            ],
+        },
+    )
+    with stub:
+        result = gen.generate(soap, "t", Patient(), deadline=time.monotonic() + 400)
+    assert result.raw == RAW and len(bodies) == 2

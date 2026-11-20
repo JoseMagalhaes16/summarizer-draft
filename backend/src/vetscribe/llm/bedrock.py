@@ -23,6 +23,8 @@ from vetscribe.prompts.builder import (
 )
 
 ANTHROPIC_VERSION = "bedrock-2023-05-31"
+# Extra headroom (seconds) required on top of one read timeout before a second attempt starts.
+RETRY_MARGIN_S = 30
 _TOOL_DESCRIPTION = (
     "Record the finished structured clinical note for this consultation. "
     "Call exactly once with the complete note."
@@ -34,7 +36,7 @@ def make_client(settings: Settings) -> Any:
         region_name=settings.aws_region,
         read_timeout=settings.bedrock_read_timeout_s,
         connect_timeout=10,
-        retries={"mode": "adaptive", "max_attempts": 4},
+        retries={"mode": "adaptive", "total_max_attempts": 2},
     )
     return boto3.client("bedrock-runtime", config=cfg)
 
@@ -161,6 +163,7 @@ class BedrockNoteGenerator:
         transcript: str,
         patient: Patient,
         clinician: str = "",
+        deadline: float | None = None,
     ) -> GenerationResult:
         started = time.monotonic()
         body = self.build_request_body(template, transcript, patient, clinician)
@@ -170,6 +173,11 @@ class BedrockNoteGenerator:
         raw: dict[str, Any] | None = None
 
         for attempt in range(1, attempts + 1):
+            if attempt > 1 and deadline is not None:
+                budget = deadline - time.monotonic()
+                if budget <= self._settings.bedrock_read_timeout_s + RETRY_MARGIN_S:
+                    logger.warning("bedrock_retry_skipped_budget", extra={"budget_s": int(budget)})
+                    break
             payload = self._invoke(body)
             usage = payload.get("usage") or {}
             in_tok += int(usage.get("input_tokens", 0))

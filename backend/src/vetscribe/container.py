@@ -72,7 +72,9 @@ class Container:
                     self._dispatcher = LambdaAsyncDispatcher(s.worker_function_name, client)
                 else:
                     self._dispatcher = InlineThreadDispatcher(
-                        lambda note_id, clinic_id: self.note_service.process(note_id, clinic_id)
+                        lambda note_id, clinic_id, gen_id: self.note_service.process(
+                            note_id, clinic_id, gen_id
+                        )
                     )
             return self._dispatcher
 

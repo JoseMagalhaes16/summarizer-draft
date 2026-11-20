@@ -9,7 +9,8 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from vetscribe.domain.models import Note, Template
+from vetscribe.domain.models import Note, NoteSummary, Template
+from vetscribe.repositories.base import ensure_fits
 
 
 class MemoryRepository:
@@ -80,10 +81,28 @@ class MemoryRepository:
             raw = self._notes.get(clinic_id, {}).get(note_id)
             return Note.model_validate(raw) if raw else None
 
+    @staticmethod
+    def _check_size(note: Note) -> None:
+        ensure_fits(note.model_dump(mode="json", exclude={"transcript"}))
+        ensure_fits({"transcript": note.transcript})
+
     def put_note(self, clinic_id: str, note: Note) -> None:
+        self._check_size(note)
         with self._lock:
             self._notes.setdefault(clinic_id, {})[note.id] = note.model_dump(mode="json")
             self._flush()
+
+    def save_if_generation(
+        self, clinic_id: str, note: Note, expected_generation_id: str | None
+    ) -> bool:
+        self._check_size(note)
+        with self._lock:
+            current = self._notes.get(clinic_id, {}).get(note.id)
+            if current is None or current.get("generation_id") != expected_generation_id:
+                return False
+            self._notes[clinic_id][note.id] = note.model_dump(mode="json")
+            self._flush()
+            return True
 
     def delete_note(self, clinic_id: str, note_id: str) -> bool:
         with self._lock:
@@ -92,7 +111,9 @@ class MemoryRepository:
                 self._flush()
             return removed
 
-    def list_notes(self, clinic_id: str, limit: int = 50) -> list[Note]:
+    def list_note_summaries(self, clinic_id: str, limit: int = 50) -> list[NoteSummary]:
         with self._lock:
             ids = sorted(self._notes.get(clinic_id, {}), reverse=True)[:limit]
-            return [Note.model_validate(self._notes[clinic_id][i]) for i in ids]
+            return [
+                NoteSummary.from_note(Note.model_validate(self._notes[clinic_id][i])) for i in ids
+            ]

@@ -60,8 +60,8 @@ def test_note_crud_and_order(repo, soap: Template) -> None:  # type: ignore[no-u
     for i in ("01", "03", "02"):
         repo.put_note(CLINIC, _note(i, soap))
     repo.put_template(CLINIC, _tpl())  # must not leak into note list
-    assert [n.id for n in repo.list_notes(CLINIC)] == ["03", "02", "01"]
-    assert [n.id for n in repo.list_notes(CLINIC, limit=2)] == ["03", "02"]
+    assert [n.id for n in repo.list_note_summaries(CLINIC)] == ["03", "02", "01"]
+    assert [n.id for n in repo.list_note_summaries(CLINIC, limit=2)] == ["03", "02"]
     n = repo.get_note(CLINIC, "02")
     n.status = "completed"
     repo.put_note(CLINIC, n)
@@ -84,4 +84,4 @@ def test_memory_file_persistence(tmp_path, soap: Template) -> None:  # type: ign
 def test_memory_corrupt_file_ignored(tmp_path) -> None:  # type: ignore[no-untyped-def]
     p = tmp_path / "d.json"
     p.write_text("{not json")
-    assert MemoryRepository(str(p)).list_notes(CLINIC) == []
+    assert MemoryRepository(str(p)).list_note_summaries(CLINIC) == []

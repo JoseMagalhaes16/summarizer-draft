@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import re
 from typing import Any
 
 import pytest
@@ -156,3 +157,222 @@ def test_mock_latency_and_long_summary() -> None:
     assert gen.model_info.provider == "mock"
     empty = MockNoteGenerator(0).generate(tpl, "", Patient())
     assert empty.raw["visit_summary"]
+
+
+# ---- not_discussed honoured --------------------------------------------------------------
+
+
+def test_not_discussed_clears_content_unless_defaults() -> None:
+    tpl = Template.model_validate(
+        {
+            "id": "t",
+            "name": "T",
+            "sections": [
+                {"id": "p", "title": "P", "format": "paragraph"},
+                {"id": "b", "title": "B", "format": "bullets"},
+                {
+                    "id": "k",
+                    "title": "K",
+                    "format": "key_value",
+                    "fields": [{"key": "a", "label": "A"}],
+                },
+                {
+                    "id": "d",
+                    "title": "D",
+                    "format": "paragraph",
+                    "missing_behavior": "use_normal_defaults",
+                    "normal_defaults": "Normal",
+                },
+            ],
+        }
+    )
+    raw = {
+        "visit_summary": "s",
+        "sections": {
+            "p": {"content": "invented", "not_discussed": True},
+            "b": {"items": ["invented"], "not_discussed": True},
+            "k": {"fields": {"a": "invented"}, "not_discussed": True},
+            "d": {"content": "", "not_discussed": True},
+        },
+    }
+    res = postprocess(raw, tpl)
+    p, b, k, d = res.sections
+    assert p.not_discussed and p.content == ""
+    assert b.not_discussed and b.items == []
+    assert k.not_discussed and [f.value for f in k.fields] == [""] and k.fields[0].label == "A"
+    assert d.content == "Normal" and d.used_defaults and not d.not_discussed
+
+
+def test_postprocess_oversized_output_is_invalid() -> None:
+    tpl = Template.model_validate({"id": "t", "name": "T", "sections": [{"id": "p", "title": "P"}]})
+    raw = {"visit_summary": "s" * 900, "sections": {"p": {"content": "ok"}}}
+    assert len(postprocess(raw, tpl).visit_summary) == 500  # summary is trimmed
+    raw["sections"] = {"p": {"content": "x" * 20_001}}
+    with pytest.raises(GenerationError) as ei:
+        postprocess(raw, tpl)
+    assert ei.value.code == "INVALID_MODEL_OUTPUT"
+
+
+# ---- mock quality -----------------------------------------------------------------------
+
+
+def _tpl(tid: str) -> Template:
+    from vetscribe.domain.builtin_templates import get_builtin
+
+    tpl = get_builtin(tid)
+    assert tpl
+    return tpl
+
+
+def _all_text(raw: dict[str, Any]) -> list[str]:
+    out: list[str] = []
+    for sec in raw["sections"].values():
+        out += [sec.get("content", ""), *sec.get("items", []), *sec.get("fields", {}).values()]
+    return [t for t in out if t]
+
+
+def test_mock_feline_wellness_uses_todays_weight_and_clean_vitals() -> None:
+    tpl = _tpl("builtin-wellness")
+    raw = MockNoteGenerator(0).generate(tpl, transcript("feline_wellness"), Patient()).raw
+    vit = raw["sections"]["vitals"]["fields"]
+    assert vit["weight"] == "4.9 kg"  # not last visit's 5.8 kg
+    assert vit["temperature"] == "101.8°F"
+    assert vit["heart_rate"] == "220 bpm" and vit["resp_rate"] == "32 breaths/min"
+    assert vit["bcs"] == "4/9" and vit["mm"] == "pink"
+    assert vit["crt"] == "less than two seconds"
+    assert vit["pain_score"] == ""  # not found: empty, never a sentence
+    for value in vit.values():
+        assert len(value.split()) <= 4 and ". " not in value
+
+
+@pytest.mark.parametrize("name", ["canine_otitis", "feline_wellness", "canine_dental_preop"])
+def test_mock_content_hygiene(name: str) -> None:
+    from vetscribe.domain.builtin_templates import list_builtins
+
+    text = transcript(name)
+    for tpl in list_builtins():
+        raw = _gen(tpl, text)
+        used: list[str] = []
+        for sec in raw["sections"].values():
+            used += [*sec.get("items", [])]
+            if sec.get("content") and not sec.get("used_defaults"):
+                used.append(sec["content"])
+        joined = " ".join(_all_text(raw))
+        assert "?" not in joined, (name, tpl.id)
+        assert not re.search(r"\b(?:Hi|Hello|Thanks|Thank you|Good morning)\b", joined)
+        # each transcript sentence appears in at most one narrative section
+        seen: dict[str, str] = {}
+        for sid, sec in raw["sections"].items():
+            parts = [*sec.get("items", [])]
+            if sec.get("content"):
+                parts += re.split(r"(?<=[.!?])\s+", sec["content"])
+            for part in parts:
+                if len(part.split()) >= 4 and part in text.replace("\n", " "):
+                    assert seen.setdefault(part, sid) == sid, (tpl.id, part)
+
+
+def test_mock_key_value_never_dumps_sentences() -> None:
+    tpl = Template.model_validate(
+        {
+            "id": "t",
+            "name": "T",
+            "sections": [
+                {
+                    "id": "kv",
+                    "title": "KV",
+                    "format": "key_value",
+                    "fields": [
+                        {"key": "diet", "label": "Diet"},
+                        {"key": "weight", "label": "Weight"},
+                        {"key": "asa_class", "label": "ASA class"},
+                        {"key": "appetite", "label": "Appetite"},
+                        {"key": "pain_score", "label": "Pain score"},
+                        {"key": "bcs", "label": "BCS"},
+                        {"key": "crt", "label": "CRT"},
+                        {"key": "mm", "label": "MM"},
+                        {"key": "hr", "label": "HR"},
+                        {"key": "rr", "label": "RR"},
+                        {"key": "temp", "label": "Temp"},
+                    ],
+                }
+            ],
+        }
+    )
+    text = (
+        "Vet: Diet is chicken based kibble, plus a spoon of wet food every evening for dinner. "
+        "Appetite was good. He weighs 10 lbs today but weighed 12 pounds last month. "
+        "He'll be an ASA 2 patient. Pain score 3 out of 4. BCS 6. CRT <2s. Gums pale and tacky. "
+        "HR 120. RR 30. Temp 38.6 degrees Celsius. Nothing else of note here."
+    )
+    vals = MockNoteGenerator(0).generate(tpl, text, Patient()).raw["sections"]["kv"]["fields"]
+    assert vals["diet"] == "chicken based kibble"  # stops at the comma: at most a short phrase
+    assert vals["appetite"] == "good"
+    assert vals["weight"] == "10 lb"
+    assert vals["asa_class"] == "II"
+    assert vals["pain_score"] == "3/4"
+    assert vals["bcs"] == "6/9" or vals["bcs"] == ""
+    assert vals["crt"] == "<2s"
+    assert vals["mm"] == "pale and tacky"
+    assert vals["hr"] == "120 bpm" and vals["rr"] == "30 breaths/min"
+    assert vals["temp"] == "38.6°C"
+    empty = MockNoteGenerator(0).generate(tpl, "Nothing measured at all today.", Patient()).raw
+    assert not any(empty["sections"]["kv"]["fields"].values())
+    assert empty["sections"]["kv"]["not_discussed"] is True
+
+
+def test_mock_weight_fallback_is_last_mention() -> None:
+    tpl = _tpl("builtin-soap")
+    text = "He was 6 kg in spring. Later he was 7 kg. Nothing else."
+    raw = MockNoteGenerator(0).generate(tpl, text, Patient()).raw
+    assert raw["sections"]["vitals"]["fields"]["weight"] == "7 kg"
+
+
+def test_mock_visit_summary_name_species_and_no_greeting() -> None:
+    tpl = _tpl("builtin-wellness")
+    text = transcript("feline_wellness")
+    raw = MockNoteGenerator(0).generate(tpl, text, Patient(name="Miso", species="Feline")).raw
+    summary = raw["visit_summary"]
+    assert summary.startswith("Miso, feline: wellness exam — ")
+    assert "lost weight" in summary and len(summary) <= 160
+    assert not re.search(r"\b(hi|hello|thanks|thank you)\b", summary, re.I)
+    # Name and species are inferred from the transcript when the form is empty.
+    inferred = MockNoteGenerator(0).generate(tpl, text, Patient()).raw["visit_summary"]
+    assert inferred.startswith("Miso, feline:")
+    dental = MockNoteGenerator(0).generate(
+        _tpl("builtin-dental"), transcript("canine_dental_preop"), Patient()
+    )
+    assert dental.raw["visit_summary"].startswith("Max, canine: dental consult")
+    otitis = MockNoteGenerator(0).generate(
+        _tpl("builtin-sick"), transcript("canine_otitis"), Patient()
+    )
+    assert otitis.raw["visit_summary"].startswith("Bella, canine: sick visit — shaking her head")
+    anon = MockNoteGenerator(0).generate(_tpl("builtin-soap"), "Nothing to see.", Patient())
+    assert anon.raw["visit_summary"].startswith("Patient: general consult")
+    assert len(anon.raw["visit_summary"]) <= 160
+
+
+def test_mock_use_normal_defaults_wording() -> None:
+    tpl = _tpl("builtin-soap")
+    raw = MockNoteGenerator(0).generate(tpl, transcript("canine_otitis"), Patient()).raw
+    pe = raw["sections"]["physical_exam"]
+    assert pe["used_defaults"] is True
+    assert "Other systems not mentioned:" in pe["content"]
+    assert "Heart and lungs sound normal." in pe["content"]
+
+
+def test_mock_action_items_and_review_flags() -> None:
+    raw = (
+        MockNoteGenerator(0)
+        .generate(_tpl("builtin-sick"), transcript("canine_otitis"), Patient())
+        .raw
+    )
+    actions = raw["action_items"]
+    assert 1 <= len(actions) <= 6
+    assert not any(a.lower().startswith(("so ", "okay", "let's")) for a in actions)
+    assert "Book the recheck for two weeks from today" in actions
+    assert any("recheck both ears" in a for a in actions)
+    assert "Confirm dose for: carprofen" in raw["review_flags"]
+    assert any("mock generator" in f for f in raw["review_flags"])
+    dental = _gen(_tpl("builtin-dental"), transcript("canine_dental_preop"))
+    assert not any("pimobendan" in f for f in dental["review_flags"])  # dose was stated
+    assert any("pimobendan" in a for a in dental["action_items"])

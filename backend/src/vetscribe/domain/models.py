@@ -6,7 +6,14 @@ import re
 from datetime import UTC, datetime
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 IDENT_RE = re.compile(r"^[a-z][a-z0-9_]{0,39}$")
 
@@ -31,10 +38,25 @@ ErrorCode = Literal[
     "OUTPUT_TRUNCATED",
     "INVALID_MODEL_OUTPUT",
     "LLM_ERROR",
+    "GENERATION_TIMEOUT",
+    "PAYLOAD_TOO_LARGE",
     "INTERNAL",
 ]
 
 Ident = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,39}$")]
+
+# Hard limits (keep a note comfortably below the 400 KB DynamoDB item limit).
+MAX_TRANSCRIPT_BYTES = 300_000
+SHORT = 120  # patient fields, clinician
+MAX_SPECIES = 10
+MAX_FIELDS_PER_SECTION = 30
+
+
+Name120 = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
+Title80 = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
+Text2000 = Annotated[str, StringConstraints(max_length=2000)]
+Text500 = Annotated[str, StringConstraints(max_length=500)]
+Short120 = Annotated[str, StringConstraints(max_length=SHORT)]
 
 
 def utc_now_iso() -> str:
@@ -47,16 +69,16 @@ class _Model(BaseModel):
 
 class FieldDef(_Model):
     key: Ident
-    label: str = Field(min_length=1, max_length=80)
-    hint: str = Field(default="", max_length=300)
+    label: Title80
+    hint: str = Field(default="", max_length=200)
 
 
 class Section(_Model):
     id: Ident
-    title: str = Field(min_length=1, max_length=80)
+    title: Title80
     instructions: str = Field(default="", max_length=2000)
     format: SectionFormat = "paragraph"
-    fields: list[FieldDef] = Field(default_factory=list)
+    fields: list[FieldDef] = Field(default_factory=list, max_length=MAX_FIELDS_PER_SECTION)
     required: bool = True
     missing_behavior: MissingBehavior = "state_not_discussed"
     normal_defaults: str = Field(default="", max_length=2000)
@@ -81,10 +103,10 @@ class Style(_Model):
 
 
 class TemplateInput(_Model):
-    name: str = Field(min_length=1, max_length=120)
+    name: Name120
     description: str = Field(default="", max_length=500)
     appointment_type: AppointmentType = "general"
-    species: list[str] = Field(default_factory=list)
+    species: list[Short120] = Field(default_factory=list, max_length=MAX_SPECIES)
     sections: list[Section] = Field(min_length=1, max_length=30)
     style: Style = Field(default_factory=Style)
 
@@ -105,12 +127,12 @@ class Template(TemplateInput):
 
 
 class Patient(_Model):
-    name: str = ""
-    species: str = ""
-    breed: str = ""
-    age: str = ""
-    sex: str = ""
-    weight: str = ""
+    name: Short120 = ""
+    species: Short120 = ""
+    breed: Short120 = ""
+    age: Short120 = ""
+    sex: Short120 = ""
+    weight: Short120 = ""
 
 
 class NoteError(_Model):
@@ -127,27 +149,27 @@ class ModelInfo(_Model):
 
 
 class ResultField(_Model):
-    key: str
-    label: str
-    value: str = ""
+    key: str = Field(max_length=80)
+    label: str = Field(max_length=200)
+    value: Text2000 = ""
 
 
 class ResultSection(_Model):
-    section_id: str
-    title: str
+    section_id: str = Field(max_length=80)
+    title: str = Field(max_length=200)
     format: SectionFormat
-    content: str = ""
-    items: list[str] = Field(default_factory=list)
-    fields: list[ResultField] = Field(default_factory=list)
+    content: str = Field(default="", max_length=20_000)
+    items: list[Text2000] = Field(default_factory=list, max_length=100)
+    fields: list[ResultField] = Field(default_factory=list, max_length=MAX_FIELDS_PER_SECTION)
     not_discussed: bool = False
     used_defaults: bool = False
 
 
 class NoteResult(_Model):
-    visit_summary: str = ""
-    sections: list[ResultSection] = Field(default_factory=list)
-    action_items: list[str] = Field(default_factory=list)
-    review_flags: list[str] = Field(default_factory=list)
+    visit_summary: str = Field(default="", max_length=500)
+    sections: list[ResultSection] = Field(default_factory=list, max_length=30)
+    action_items: list[Text500] = Field(default_factory=list, max_length=50)
+    review_flags: list[Text500] = Field(default_factory=list, max_length=50)
 
 
 class Note(_Model):
@@ -156,8 +178,10 @@ class Note(_Model):
     template_name: str
     template_snapshot: Template
     patient: Patient = Field(default_factory=Patient)
-    clinician: str = ""
+    clinician: Short120 = ""
     transcript: str
+    # Identifies the current generation attempt; every worker write is conditional on it.
+    generation_id: str | None = None
     status: NoteStatus = "pending"
     error: NoteError | None = None
     result: NoteResult | None = None
@@ -199,7 +223,14 @@ class CreateNoteRequest(_Model):
     template_id: str = Field(min_length=1)
     transcript: str
     patient: Patient = Field(default_factory=Patient)
-    clinician: str = Field(default="", max_length=200)
+    clinician: Short120 = ""
+
+    @field_validator("transcript")
+    @classmethod
+    def _transcript_bytes(cls, v: str) -> str:
+        if len(v.encode("utf-8")) > MAX_TRANSCRIPT_BYTES:
+            raise ValueError(f"transcript exceeds {MAX_TRANSCRIPT_BYTES} bytes")
+        return v
 
 
 class UpdateNoteRequest(_Model):
@@ -211,4 +242,4 @@ class RegenerateRequest(_Model):
 
 
 class DuplicateRequest(_Model):
-    name: str | None = Field(default=None, min_length=1, max_length=120)
+    name: Name120 | None = None

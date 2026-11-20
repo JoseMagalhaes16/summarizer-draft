@@ -79,3 +79,34 @@ def make_event(
         "body": json.dumps(body) if body is not None and not isinstance(body, str) else body,
         "isBase64Encoded": False,
     }
+
+
+@pytest.fixture(params=["memory", "dynamodb"])
+def any_repo(request: pytest.FixtureRequest) -> Iterator[Any]:
+    """The same repository contract against the memory and the (moto) DynamoDB backends."""
+    import boto3
+    from moto import mock_aws
+
+    from vetscribe.repositories.dynamodb import DynamoRepository
+    from vetscribe.repositories.memory import MemoryRepository
+
+    if request.param == "memory":
+        yield MemoryRepository()
+        return
+    with mock_aws():
+        ddb = boto3.resource("dynamodb", region_name="us-east-1")
+        table = ddb.create_table(
+            TableName="t",
+            KeySchema=[
+                {"AttributeName": "PK", "KeyType": "HASH"},
+                {"AttributeName": "SK", "KeyType": "RANGE"},
+            ],
+            AttributeDefinitions=[
+                {"AttributeName": "PK", "AttributeType": "S"},
+                {"AttributeName": "SK", "AttributeType": "S"},
+            ],
+            BillingMode="PAY_PER_REQUEST",
+        )
+        repo = DynamoRepository(ddb.Table("t"))
+        repo.raw_table = table  # type: ignore[attr-defined]
+        yield repo

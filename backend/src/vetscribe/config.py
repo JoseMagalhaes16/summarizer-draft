@@ -44,9 +44,10 @@ class Settings:
     bedrock_structured_mode: StructuredMode = "output_config"
     bedrock_effort: str = "medium"
     bedrock_max_tokens: int = 16000
-    bedrock_read_timeout_s: int = 300
+    bedrock_read_timeout_s: int = 240
     mock_latency_seconds: float = 2.5
     max_transcript_chars: int = 200000
+    stale_generation_seconds: int = 1200
     default_clinic_id: str = "default"
     cors_allow_origin: str = "*"
     log_level: str = "INFO"
@@ -68,9 +69,10 @@ class Settings:
             bedrock_structured_mode="tool" if mode == "tool" else "output_config",
             bedrock_effort=_choice(e, "BEDROCK_EFFORT", "medium", ("low", "medium", "high")),
             bedrock_max_tokens=_int(e, "BEDROCK_MAX_TOKENS", 16000),
-            bedrock_read_timeout_s=_int(e, "BEDROCK_READ_TIMEOUT_S", 300),
+            bedrock_read_timeout_s=_int(e, "BEDROCK_READ_TIMEOUT_S", 240),
             mock_latency_seconds=_float(e, "MOCK_LATENCY_SECONDS", 2.5),
             max_transcript_chars=_int(e, "MAX_TRANSCRIPT_CHARS", 200000),
+            stale_generation_seconds=_int(e, "STALE_GENERATION_SECONDS", 1200),
             default_clinic_id=e.get("DEFAULT_CLINIC_ID", "").strip() or "default",
             cors_allow_origin=e.get("CORS_ALLOW_ORIGIN", "").strip() or "*",
             log_level=e.get("LOG_LEVEL", "").strip().upper() or "INFO",

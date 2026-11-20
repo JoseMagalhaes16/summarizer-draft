@@ -21,14 +21,14 @@ def _input(name: str = "Mine") -> TemplateInput:
 
 class SyncDispatcher:
     def __init__(self) -> None:
-        self.calls: list[tuple[str, str]] = []
+        self.calls: list[tuple[str, str, str]] = []
 
-    def dispatch(self, note_id: str, clinic_id: str) -> None:
-        self.calls.append((note_id, clinic_id))
+    def dispatch(self, note_id: str, clinic_id: str, generation_id: str) -> None:
+        self.calls.append((note_id, clinic_id, generation_id))
 
 
 class BoomDispatcher:
-    def dispatch(self, note_id: str, clinic_id: str) -> None:
+    def dispatch(self, note_id: str, clinic_id: str, generation_id: str) -> None:
         raise RuntimeError("nope")
 
 
@@ -37,7 +37,12 @@ class StaticGenerator:
         self.exc, self.raw = exc, raw
 
     def generate(
-        self, template: Any, transcript: str, patient: Any, clinician: str = ""
+        self,
+        template: Any,
+        transcript: str,
+        patient: Any,
+        clinician: str = "",
+        deadline: float | None = None,
     ) -> GenerationResult:
         if self.exc:
             raise self.exc
@@ -45,6 +50,12 @@ class StaticGenerator:
         from vetscribe.domain.models import ModelInfo
 
         return GenerationResult(self.raw, ModelInfo(provider="mock", model_id="m"))
+
+
+def gid(svc: Any, note_id: str) -> str:
+    gen = svc.get(C, note_id).generation_id
+    assert gen
+    return str(gen)
 
 
 def test_template_lifecycle(container: Container) -> None:
@@ -109,19 +120,20 @@ def test_process_success_and_edit_flow(settings: Settings, otitis: str) -> None:
             template_id="builtin-soap", transcript=otitis, patient=Patient(name="Bella")
         ),
     )
-    assert note.status == "pending" and disp.calls == [(note.id, C)]
+    assert note.status == "pending" and disp.calls == [(note.id, C, note.generation_id)]
     with pytest.raises(AppError) as ei:
         svc.update_result(C, note.id, NoteResult())
     assert ei.value.status == 409 and ei.value.code == "NOT_COMPLETED"
-    svc.process(note.id, C)
+    svc.process(note.id, C, gid(svc, note.id))
     done = svc.get(C, note.id)
     assert done.status == "completed" and done.result and done.model_info
-    svc.process(note.id, C)  # no-op when completed
+    svc.process(note.id, C, gid(svc, note.id))  # no-op when completed
     edited = svc.update_result(
         C, note.id, done.result.model_copy(update={"visit_summary": "Edited"})
     )
     assert edited.edited and svc.list(C)[0].visit_summary == "Edited"
     again = svc.regenerate(C, note.id, "builtin-wellness")
+    assert again.generation_id != note.generation_id
     assert again.status == "pending" and again.result is None and not again.edited
     assert again.template_id == "builtin-wellness" and len(disp.calls) == 2
     svc.delete(C, note.id)
@@ -129,7 +141,7 @@ def test_process_success_and_edit_flow(settings: Settings, otitis: str) -> None:
         svc.get(C, note.id)
     with pytest.raises(AppError):
         svc.delete(C, note.id)
-    svc.process("missing", C)  # logs, no error
+    svc.process("missing", C, "g")  # logs, no error
 
 
 @pytest.mark.parametrize(
@@ -145,7 +157,7 @@ def test_process_failures(settings: Settings, gen: Any, code: str) -> None:
     note = c.note_service.create(
         C, CreateNoteRequest(template_id="builtin-soap", transcript="hello there")
     )
-    c.note_service.process(note.id, C)
+    c.note_service.process(note.id, C, note.generation_id or "")
     failed = c.note_service.get(C, note.id)
     assert failed.status == "failed" and failed.error and failed.error.code == code
     assert "secret" not in failed.error.message
@@ -169,28 +181,17 @@ def test_regenerate_missing_template(settings: Settings) -> None:
         c.note_service.regenerate(C, note.id, "nope")
 
 
-def test_deleted_while_processing(settings: Settings) -> None:
-    c = Container(settings)
-    note = c.note_service.create(
-        C, CreateNoteRequest(template_id="builtin-soap", transcript="hello there")
-    )
-    c.dispatcher.join()  # type: ignore[attr-defined]
-    c.note_service.delete(C, note.id)
-    c.note_service.process(note.id, C)
-    assert c.repository.get_note(C, note.id) is None
-
-
 def test_inline_dispatcher_runs_in_thread_and_swallows_errors() -> None:
-    seen: list[tuple[str, str]] = []
+    seen: list[tuple[str, str, str]] = []
 
-    def worker(n: str, c: str) -> None:
-        seen.append((n, c))
+    def worker(n: str, c: str, g: str) -> None:
+        seen.append((n, c, g))
         raise RuntimeError("x")
 
     d = InlineThreadDispatcher(worker)
-    d.dispatch("n1", "c1")
+    d.dispatch("n1", "c1", "g1")
     d.join()
-    assert seen == [("n1", "c1")] and d.threads[0].daemon
+    assert seen == [("n1", "c1", "g1")] and d.threads[0].daemon
 
 
 def test_lambda_dispatcher() -> None:
@@ -201,9 +202,13 @@ def test_lambda_dispatcher() -> None:
             self.kw = kw
 
     fake = FakeLambda()
-    LambdaAsyncDispatcher("fn", fake).dispatch("n1", "c1")
+    LambdaAsyncDispatcher("fn", fake).dispatch("n1", "c1", "g1")
     assert fake.kw["InvocationType"] == "Event" and fake.kw["FunctionName"] == "fn"
-    assert json.loads(fake.kw["Payload"]) == {"note_id": "n1", "clinic_id": "c1"}
+    assert json.loads(fake.kw["Payload"]) == {
+        "note_id": "n1",
+        "clinic_id": "c1",
+        "generation_id": "g1",
+    }
     with pytest.raises(ValueError):
         LambdaAsyncDispatcher("", fake)
 

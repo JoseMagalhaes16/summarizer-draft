@@ -50,6 +50,12 @@ def _build_section(section: Section, raw: RawSection) -> ResultSection:
     else:
         empty = not any(f.value for f in fields)
 
+    # Honour the model's own "not discussed" verdict unless defaults are to be filled in.
+    if raw.not_discussed and section.missing_behavior != "use_normal_defaults":
+        content, items = "", []
+        fields = [f.model_copy(update={"value": ""}) for f in fields]
+        empty = True
+
     used_defaults = False
     if empty:
         defaults = section.normal_defaults.strip()
@@ -95,9 +101,15 @@ def postprocess(raw: dict[str, Any], template: Template) -> NoteResult:
             "Model output is missing sections: " + ", ".join(missing),
         )
 
-    return NoteResult(
-        visit_summary=parsed.visit_summary.strip(),
-        sections=[_build_section(s, parsed.sections[s.id]) for s in template.sections],
-        action_items=_clean(parsed.action_items),
-        review_flags=_clean(parsed.review_flags),
-    )
+    try:
+        return NoteResult(
+            visit_summary=parsed.visit_summary.strip()[:500],
+            sections=[_build_section(s, parsed.sections[s.id]) for s in template.sections],
+            action_items=_clean(parsed.action_items),
+            review_flags=_clean(parsed.review_flags),
+        )
+    except ValidationError as exc:
+        raise GenerationError(
+            "INVALID_MODEL_OUTPUT",
+            f"Model output exceeded the allowed sizes ({exc.error_count()} problems).",
+        ) from exc

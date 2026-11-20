@@ -30,6 +30,13 @@ class AppError(Exception):
         return {"error": err}
 
 
+class PayloadTooLargeError(AppError):
+    """A stored note would exceed the item-size budget (maps to HTTP 413)."""
+
+    def __init__(self, message: str = "The note is too large to store") -> None:
+        super().__init__(413, "PAYLOAD_TOO_LARGE", message)
+
+
 def not_found(what: str) -> AppError:
     return AppError(404, "NOT_FOUND", f"{what} not found")
 

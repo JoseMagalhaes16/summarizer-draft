@@ -30,3 +30,10 @@ def test_overrides() -> None:
 def test_invalid_choice() -> None:
     with pytest.raises(ValueError):
         Settings.from_env({"LLM_PROVIDER": "openai"})
+
+
+def test_timeouts_and_staleness() -> None:
+    s = Settings.from_env({})
+    assert s.bedrock_read_timeout_s == 240 and s.stale_generation_seconds == 1200
+    s = Settings.from_env({"BEDROCK_READ_TIMEOUT_S": "100", "STALE_GENERATION_SECONDS": "60"})
+    assert s.bedrock_read_timeout_s == 100 and s.stale_generation_seconds == 60

@@ -28,10 +28,17 @@ Parameters:
     Type: String
     Default: "*"
     Description: Allowed CORS origin for the browser frontend (e.g. https://app.example.com).
+  AlarmEmail:
+    Type: String
+    Default: ""
+    Description: Optional e-mail address subscribed to alarm notifications (leave empty for none).
   LogRetentionDays:
     Type: Number
     Default: 30
     AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 120, 180, 365]
+
+Conditions:
+  HasAlarmEmail: !Not [!Equals [!Ref AlarmEmail, ""]]
 
 Globals:
   Function:
@@ -50,7 +57,8 @@ Globals:
         BEDROCK_MODEL_ID: !Ref BedrockModelId
         BEDROCK_STRUCTURED_MODE: !Ref BedrockStructuredMode
         BEDROCK_EFFORT: !Ref BedrockEffort
-        BEDROCK_READ_TIMEOUT_S: "280"
+        BEDROCK_READ_TIMEOUT_S: "240"
+        STALE_GENERATION_SECONDS: "1200"
         CORS_ALLOW_ORIGIN: !Ref CorsAllowOrigin
         LOG_LEVEL: INFO
         POWERTOOLS_SERVICE_NAME: vetscribe
@@ -79,6 +87,7 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       MessageRetentionPeriod: 1209600
+      VisibilityTimeout: 180
       SqsManagedSseEnabled: true
 
   # ---------------------------------------------------------------- API
@@ -130,7 +139,7 @@ Resources:
       CodeUri: ../backend/src/
       Handler: vetscribe.handlers.worker.lambda_handler
       MemorySize: 1024
-      Timeout: 300
+      Timeout: 900
       LoggingConfig:
         LogGroup: !Ref WorkerLogGroup
       EventInvokeConfig:
@@ -141,10 +150,15 @@ Resources:
             Type: SQS
             Destination: !GetAtt WorkerDeadLetterQueue.Arn
       Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref Table
         - Version: "2012-10-17"
           Statement:
+            - Sid: NoteTableReadWrite
+              Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+              Resource: !GetAtt Table.Arn
             # Cross-region inference profiles route to other regions, hence the `*` region on the
             # foundation-model ARN. For `global.` profiles you additionally need
             #   arn:aws:bedrock:::foundation-model/<model id>
@@ -153,10 +167,39 @@ Resources:
               Effect: Allow
               Action:
                 - bedrock:InvokeModel
-                - bedrock:InvokeModelWithResponseStream
               Resource:
                 - !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${BedrockModelId}
                 - !Sub arn:${AWS::Partition}:bedrock:*::foundation-model/${BedrockFoundationModelId}
+
+  DlqHandlerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub vetscribe-${Stage}-dlq-handler
+      Description: Marks notes whose generation invocation failed permanently as failed
+      CodeUri: ../backend/src/
+      Handler: vetscribe.handlers.dlq.lambda_handler
+      MemorySize: 256
+      Timeout: 60
+      LoggingConfig:
+        LogGroup: !Ref DlqHandlerLogGroup
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: NoteTableReadWrite
+              Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+              Resource: !GetAtt Table.Arn
+      Events:
+        Dlq:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt WorkerDeadLetterQueue.Arn
+            BatchSize: 10
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
 
   # ---------------------------------------------------------------- logs
   ApiLogGroup:
@@ -171,7 +214,27 @@ Resources:
       LogGroupName: !Sub /aws/lambda/vetscribe-${Stage}-worker
       RetentionInDays: !Ref LogRetentionDays
 
+  DlqHandlerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/vetscribe-${Stage}-dlq-handler
+      RetentionInDays: !Ref LogRetentionDays
+
   # ---------------------------------------------------------------- alarms
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub vetscribe-${Stage}-alarms
+      KmsMasterKeyId: alias/aws/sns
+
+  AlarmSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasAlarmEmail
+    Properties:
+      TopicArn: !Ref AlarmTopic
+      Protocol: email
+      Endpoint: !Ref AlarmEmail
+
   WorkerErrorsAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -188,6 +251,7 @@ Resources:
       Threshold: 1
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
 
   WorkerDlqDepthAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -205,6 +269,43 @@ Resources:
       Threshold: 1
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  GenerationFailedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub vetscribe-${Stage}-generation-failed
+      AlarmDescription: Note generations are failing (custom metric GenerationFailed)
+      Namespace: VetScribe
+      MetricName: GenerationFailed
+      Dimensions:
+        - Name: service
+          Value: vetscribe
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 3
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  DlqHandlerErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub vetscribe-${Stage}-dlq-handler-errors
+      AlarmDescription: The DLQ handler itself is failing; stuck notes may not be marked failed
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref DlqHandlerFunction
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
 
 Outputs:
   ApiUrl:
@@ -213,6 +314,8 @@ Outputs:
   TableName:
     Description: DynamoDB table
     Value: !Ref Table
+  AlarmTopicArn:
+    Value: !Ref AlarmTopic
   WorkerFunctionName:
     Value: !Ref WorkerFunction
   WorkerDeadLetterQueueUrl:

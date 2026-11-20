@@ -19,6 +19,9 @@ class Ctx:
     invoked_function_arn = "arn:aws:lambda:us-east-1:1:function:f"
     aws_request_id = "r"
 
+    def get_remaining_time_in_millis(self) -> int:
+        return 900_000
+
 
 def call(
     method: str, path: str, body: Any = None, query: dict[str, str] | None = None
@@ -195,7 +198,11 @@ def test_worker_handler(container: Container, otitis: str) -> None:
         ),
     )
     container.dispatcher.join()  # type: ignore[attr-defined]
-    res = worker.lambda_handler({"note_id": note.id, "clinic_id": "default"}, Ctx())  # type: ignore[arg-type]
+    assert note.generation_id
+    res = worker.lambda_handler(
+        {"note_id": note.id, "clinic_id": "default", "generation_id": note.generation_id},
+        Ctx(),  # type: ignore[arg-type]
+    )
     assert res["ok"] is True
     time.sleep(0)
     assert container.note_service.get("default", note.id).status == "completed"

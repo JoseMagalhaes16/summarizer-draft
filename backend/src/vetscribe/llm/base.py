@@ -21,4 +21,7 @@ class NoteGenerator(Protocol):
         transcript: str,
         patient: Patient,
         clinician: str = "",
-    ) -> GenerationResult: ...
+        deadline: float | None = None,
+    ) -> GenerationResult:
+        """``deadline``: optional ``time.monotonic()`` value by which the caller must be done."""
+        ...
