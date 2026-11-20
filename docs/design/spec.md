@@ -62,7 +62,7 @@ Makefile                 install / dev / test / lint / build / deploy targets
 | `JOB_DISPATCHER` | `inline` | `inline` (background thread) \| `lambda` |
 | `WORKER_FUNCTION_NAME` | `` | required for `lambda` dispatcher |
 | `AWS_REGION` | `us-east-1` | Bedrock / DynamoDB region |
-| `BEDROCK_MODEL_ID` | `us.anthropic.claude-opus-5-5-v1:0` *(placeholder — confirm against Bedrock console; see ADR-0003)* | Bedrock model ID or inference-profile ID |
+| `BEDROCK_MODEL_ID` | `us.anthropic.claude-opus-5-5` (US cross-region inference profile; `global.anthropic.claude-opus-5-5` also valid — verify in your account, see docs/research/bedrock-notes.md) | Bedrock model ID or inference-profile ID |
 | `BEDROCK_STRUCTURED_MODE` | `output_config` | `output_config` (native JSON-schema structured output) \| `tool` (single strict tool, `tool_choice: auto`) |
 | `BEDROCK_EFFORT` | `medium` | `low`\|`medium`\|`high` → `output_config.effort` |
 | `BEDROCK_MAX_TOKENS` | `16000` | |

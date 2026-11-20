@@ -58,7 +58,7 @@ Call `boto3.client("bedrock-runtime").invoke_model` with an Anthropic Messages b
 
 Chosen option: **Option D, Bedrock Runtime `invoke_model` with the Anthropic Messages body**, implemented in `llm/bedrock.py` behind the `NoteGenerator` protocol.
 
-The model is configuration, not code. `BEDROCK_MODEL_ID` selects a model or cross-region inference profile. The default is the latest Claude Opus-tier model. Sonnet or Haiku can be selected for cost. **Exact model IDs must be verified in the target account and region before deployment**, because model availability and inference-profile names differ by region and change over time. The current spec default is a placeholder pending that check.
+The model is configuration, not code. `BEDROCK_MODEL_ID` selects a model or cross-region inference profile. The default is the latest Claude Opus-tier model. Sonnet or Haiku can be selected for cost. **Exact model IDs must be verified in the target account and region before deployment**, because model availability and inference-profile names differ by region and change over time. The current default is the US cross-region inference profile `us.anthropic.claude-opus-5-5` (see [docs/research/bedrock-notes.md](../research/bedrock-notes.md)); IAM must allow `bedrock:InvokeModel` on both the inference-profile ARN and the underlying foundation-model ARNs in every region the profile routes to.
 
 Operational requirements:
 
