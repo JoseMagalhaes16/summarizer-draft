@@ -93,3 +93,8 @@
 /* Draft another note dialog: the picker is a single column inside the dialog */
 .dialog .picker-list { grid-template-columns: minmax(0, 1fr); }
 .picker-current { margin-left: var(--s-2); }
+
+.doc-toc { display: flex; flex-direction: column; gap: var(--s-2); }
+.doc-toc ul { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-5); }
+.doc-steps { max-width: var(--measure); padding-left: var(--s-5); display: flex; flex-direction: column; gap: var(--s-2); }
+.doc-pre-scroll { white-space: pre; overflow-wrap: normal; overflow-x: auto; }

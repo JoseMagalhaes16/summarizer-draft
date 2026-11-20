@@ -31,7 +31,7 @@ describe('Docs routes', () => {
     ['/docs/bedrock', 'The Bedrock request'],
     ['/docs/calls', 'One call or two?'],
     ['/docs/multiple-outputs', 'SOAP and client note from one transcript'],
-    ['/docs/evals', 'Evaluations in brief'],
+    ['/docs/evals', 'Evaluations'],
   ])('%s renders its heading, sub-nav and a Docs entry in the sidebar', async (path, heading) => {
     renderAt(path);
     expect(await screen.findByRole('heading', { level: 1, name: heading })).toBeInTheDocument();
@@ -47,6 +47,17 @@ describe('Edge cases page', () => {
     renderAt('/docs/behaviours');
     const table = await screen.findByRole('table', { name: /edge cases/i });
     expect(within(table).getAllByRole('row')).toHaveLength(14);
+  });
+});
+
+describe('Evaluations page', () => {
+  it('has the three parts and a nine-row expectation table', async () => {
+    renderAt('/docs/evals');
+    expect(await screen.findByRole('heading', { level: 2, name: 'How is an eval built?' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'What does an eval contain?' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'How is an eval run?' })).toBeInTheDocument();
+    const table = screen.getByRole('table', { name: /expectation/i });
+    expect(within(table).getAllByRole('row')).toHaveLength(10); // header + 9
   });
 });
 

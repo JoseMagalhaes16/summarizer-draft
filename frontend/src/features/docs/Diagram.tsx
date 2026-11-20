@@ -116,7 +116,9 @@ export function Diagram({ source, caption, description }: { source: string; capt
             altBackground: t.surface,
           },
           flowchart: { htmlLabels: true, curve: 'basis', useMaxWidth: true },
-          sequence: { useMaxWidth: true, mirrorActors: false },
+          // Sequence diagrams are wide; shrinking them to the column makes labels unreadably
+          // small, so render at natural size and let the figure scroll horizontally instead.
+          sequence: { useMaxWidth: false, mirrorActors: false },
           state: { useMaxWidth: true },
         });
         const text = /^\s*(flowchart|graph)\b/.test(source) ? `${source}\n${flowchartClasses(t)}` : source;
