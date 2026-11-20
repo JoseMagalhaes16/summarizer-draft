@@ -47,6 +47,12 @@ action_items, one short imperative item each. Only include items actually discus
 8. review_flags are for the clinician: unclear doses, contradictions, missing but clinically \
 important information the template asked for, possible transcription errors, and any \
 default-filled sections that need confirmation. Do not use review_flags for general advice.
+9. The template defines the only sections you may write. If the transcript contains clinically \
+significant information that fits none of the template's sections, do not invent a section and \
+do not squeeze it into an unrelated one: add a review_flags entry such as "Not captured by this \
+template: dental tartar noted - consider a dental note".
+10. A section marked required="true" that the transcript does not cover must still be returned \
+(empty, not_discussed true, unless it uses normal defaults); the application flags it for review.
 
 ## Style rules
 - Follow the template's style block exactly. Tone "clinical": terse professional medical \

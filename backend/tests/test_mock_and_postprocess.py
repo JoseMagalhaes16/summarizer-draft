@@ -376,3 +376,46 @@ def test_mock_action_items_and_review_flags() -> None:
     dental = _gen(_tpl("builtin-dental"), transcript("canine_dental_preop"))
     assert not any("pimobendan" in f for f in dental["review_flags"])  # dose was stated
     assert any("pimobendan" in a for a in dental["action_items"])
+
+
+def test_required_section_not_covered_is_flagged_once() -> None:
+    tpl = Template.model_validate(
+        {
+            "id": "t",
+            "name": "T",
+            "sections": [
+                {"id": "plan", "title": "Plan", "format": "bullets", "required": True},
+                {"id": "diet", "title": "Diet", "format": "paragraph", "required": False},
+                {
+                    "id": "exam",
+                    "title": "Exam",
+                    "format": "paragraph",
+                    "required": True,
+                    "missing_behavior": "use_normal_defaults",
+                    "normal_defaults": "BAR",
+                },
+            ],
+        }
+    )
+    flag = "Required section not covered in the transcript: Plan"
+    raw = {
+        "visit_summary": "x",
+        "sections": {
+            "plan": {"items": [], "not_discussed": True},
+            "diet": {"content": "", "not_discussed": True},
+            "exam": {"content": "", "not_discussed": True},
+        },
+        "review_flags": [flag],
+    }
+    result = postprocess(raw, tpl)
+    # Required + empty -> flagged (not duplicated); optional empty -> no flag;
+    # required but filled with normal defaults -> not "not covered" (defaults are flagged instead).
+    assert result.review_flags == [flag]
+    assert result.sections[2].used_defaults is True
+
+
+def test_prompt_tells_model_about_uncovered_information() -> None:
+    from vetscribe.prompts.builder import SYSTEM_PROMPT
+
+    assert "Not captured by this" in SYSTEM_PROMPT
+    assert 'required="true"' in SYSTEM_PROMPT

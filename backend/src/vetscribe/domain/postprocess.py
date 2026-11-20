@@ -102,11 +102,19 @@ def postprocess(raw: dict[str, Any], template: Template) -> NoteResult:
         )
 
     try:
+        sections = [_build_section(s, parsed.sections[s.id]) for s in template.sections]
+        review_flags = _clean(parsed.review_flags)
+        # Required sections the transcript did not cover are always surfaced for the vet.
+        for spec, built in zip(template.sections, sections, strict=True):
+            if spec.required and built.not_discussed:
+                flag = f"Required section not covered in the transcript: {spec.title}"
+                if flag not in review_flags:
+                    review_flags.append(flag)
         return NoteResult(
             visit_summary=parsed.visit_summary.strip()[:500],
-            sections=[_build_section(s, parsed.sections[s.id]) for s in template.sections],
+            sections=sections,
             action_items=_clean(parsed.action_items),
-            review_flags=_clean(parsed.review_flags),
+            review_flags=review_flags,
         )
     except ValidationError as exc:
         raise GenerationError(
