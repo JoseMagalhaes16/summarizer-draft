@@ -12,10 +12,13 @@ export function TemplatePicker({
   templates,
   value,
   onChange,
+  currentId,
 }: {
   templates: Template[];
   value: string | null;
   onChange: (id: string) => void;
+  /** Marks this template as "Current" (e.g. the one an existing note used). */
+  currentId?: string;
 }) {
   const [q, setQ] = useState('');
   const name = useId();
@@ -35,7 +38,10 @@ export function TemplatePicker({
         {shown.map((t) => (
           <label key={t.id} className={`picker-row ${t.id === value ? 'selected' : ''}`}>
             <input type="radio" name={name} value={t.id} checked={t.id === value} onChange={() => onChange(t.id)} />
-            <span className="picker-title">{t.name}</span>
+            <span className="picker-title">
+              {t.name}
+              {t.id === currentId && <span className="badge picker-current">Current</span>}
+            </span>
             <span className="picker-desc">{t.description || `${humanise(t.appointment_type)} visit`}</span>
           </label>
         ))}

@@ -32,6 +32,10 @@ export function Layout() {
             <Icon name="flask" />
             <span className="nav-label">Evaluations</span>
           </NavLink>
+          <NavLink to="/docs">
+            <Icon name="book" />
+            <span className="nav-label">Docs</span>
+          </NavLink>
         </nav>
         <div className="sidebar-foot">Drafts only. Check each note before filing.</div>
       </aside>

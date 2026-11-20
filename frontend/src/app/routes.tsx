@@ -46,6 +46,20 @@ export const routes: RouteObject[] = [
           { path: 'cases/:id', element: <CaseDetailPage /> },
         ],
       },
+      {
+        // Docs are loaded on demand so they (and their diagrams) stay out of the main bundle.
+        path: 'docs',
+        lazy: async () => ({ Component: (await import('../features/docs/DocsLayout')).DocsLayout }),
+        children: [
+          { index: true, lazy: async () => ({ Component: (await import('../features/docs/pages/HowItWorksPage')).HowItWorksPage }) },
+          { path: 'prompt', lazy: async () => ({ Component: (await import('../features/docs/pages/PromptPage')).PromptPage }) },
+          { path: 'behaviours', lazy: async () => ({ Component: (await import('../features/docs/pages/BehavioursPage')).BehavioursPage }) },
+          { path: 'bedrock', lazy: async () => ({ Component: (await import('../features/docs/pages/BedrockPage')).BedrockPage }) },
+          { path: 'calls', lazy: async () => ({ Component: (await import('../features/docs/pages/CallsPage')).CallsPage }) },
+          { path: 'multiple-outputs', lazy: async () => ({ Component: (await import('../features/docs/pages/MultipleOutputsPage')).MultipleOutputsPage }) },
+          { path: 'evals', lazy: async () => ({ Component: (await import('../features/docs/pages/EvalsDocPage')).EvalsDocPage }) },
+        ],
+      },
       { path: '*', element: <NotFound /> },
     ],
   },

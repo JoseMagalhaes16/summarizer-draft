@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../test/server';
@@ -188,5 +188,46 @@ describe('NotePage failures', () => {
     expect(alert).toHaveTextContent("Drafting didn't finish. Regenerate to try again.");
     expect(alert).not.toHaveTextContent('internal detail');
     expect(within(alert).getByRole('button', { name: 'Regenerate' })).toBeEnabled();
+  });
+});
+
+describe('Draft another note', () => {
+  const templates = [
+    makeTemplate({ id: 'builtin-soap', name: 'SOAP' }),
+    makeTemplate({ id: 'builtin-discharge', name: 'Client Discharge Summary', description: 'For the owner' }),
+  ];
+  const withTemplates = http.get('*/v1/templates', () => HttpResponse.json({ items: templates }));
+
+  it('posts the same transcript and patient with the chosen template, then opens the new note', async () => {
+    const note = { ...completed(), transcript: 'Vet: the very same transcript', clinician: 'Dr Fox', patient: { name: 'Bella', species: 'canine' } };
+    let posted: unknown = null;
+    server.use(
+      http.get('*/v1/notes/N1', () => HttpResponse.json(note)),
+      http.get('*/v1/notes/N2', () => HttpResponse.json(makeNote({ id: 'N2', status: 'pending' }))),
+      withTemplates,
+      http.post('*/v1/notes', async ({ request }) => {
+        posted = await request.json();
+        return HttpResponse.json(makeNote({ id: 'N2', status: 'pending' }), { status: 202 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderApp(<NotePage />, { route: '/notes/N1', path: '/notes/:id' });
+    await user.click(await screen.findByRole('button', { name: /more/i }));
+    await user.click(screen.getByRole('button', { name: 'Draft another note' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Current')).toBeInTheDocument();
+    await user.click(await within(dialog).findByRole('radio', { name: /Client Discharge Summary/ }));
+    await user.click(within(dialog).getByRole('button', { name: 'Draft note' }));
+    await screen.findByText('Note drafting started');
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument());
+    expect(posted).toEqual({ template_id: 'builtin-discharge', transcript: 'Vet: the very same transcript', patient: { name: 'Bella', species: 'canine' }, clinician: 'Dr Fox' });
+  });
+
+  it('is disabled while the note is still generating', async () => {
+    server.use(http.get('*/v1/notes/N1', () => HttpResponse.json(makeNote({ status: 'processing' }))), withTemplates);
+    const user = userEvent.setup();
+    renderApp(<NotePage />, { route: '/notes/N1', path: '/notes/:id' });
+    await user.click(await screen.findByRole('button', { name: /more/i }));
+    expect(screen.getByRole('button', { name: 'Draft another note' })).toBeDisabled();
   });
 });

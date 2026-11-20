@@ -11,6 +11,7 @@ import './styles/layout.css';
 import './styles/components.css';
 import './styles/pages.css';
 import './styles/evals.css';
+import './styles/docs.css';
 
 async function bootstrap() {
   if (import.meta.env.VITE_USE_MSW === 'true') {

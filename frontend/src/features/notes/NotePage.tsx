@@ -12,6 +12,7 @@ import { Callout, EmptyState, ErrorState, LoadingBlock, Skeleton, StatusBadge } 
 import { errorMessage } from '../../lib/errors';
 import { formatDateTime, formatNumber, patientLabel } from '../../lib/format';
 import { fullNoteText, isOmitted, missingBehaviors, renderSectionText } from '../../lib/renderNote';
+import { DraftAnotherDialog } from './DraftAnotherDialog';
 import { SectionBody } from './SectionView';
 import { SectionEditor } from './SectionEditor';
 import { useElapsedSeconds } from './useElapsed';
@@ -69,6 +70,7 @@ function NoteView({ note }: { note: Note }) {
   const [showEmpty, setShowEmpty] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [regenOpen, setRegenOpen] = useState(false);
+  const [draftOpen, setDraftOpen] = useState(false);
   const [regenTemplate, setRegenTemplate] = useState(note.template_id);
 
   const active = isActive(note.status);
@@ -190,6 +192,16 @@ function NoteView({ note }: { note: Note }) {
               <Menu label="More" align="right" buttonClassName="btn">
                 {(close) => (
                   <>
+                    <button
+                      type="button"
+                      disabled={active}
+                      onClick={() => {
+                        close();
+                        setDraftOpen(true);
+                      }}
+                    >
+                      Draft another note
+                    </button>
                     {!active && (
                       <button
                         type="button"
@@ -306,6 +318,8 @@ function NoteView({ note }: { note: Note }) {
           The note for <strong>{patientLabel(note.patient)}</strong> and its transcript will be permanently deleted. This can’t be undone.
         </p>
       </ConfirmDialog>
+
+      <DraftAnotherDialog note={note} open={draftOpen} onClose={() => setDraftOpen(false)} />
 
       <ConfirmDialog open={regenOpen} title="Regenerate note" confirmLabel="Regenerate" busy={regenerate.isPending} onConfirm={doRegenerate} onCancel={() => setRegenOpen(false)}>
         <p className="muted">
