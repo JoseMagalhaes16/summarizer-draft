@@ -117,6 +117,87 @@ not the model.
    `action_items`. Set `ground_truth.source` to `human-written`, `verified_by_vet: false`.
 4. `python -m vetscribe.evals.cli validate-cases`, then run the oracle to confirm 1.0.
 
+### What `validate-cases` checks
+
+A case is **rejected** when:
+
+* the file name isn't `<id>.json`;
+* the template doesn't exist;
+* an expectation names a section that doesn't exist;
+* a field expectation points at a section that isn't key-value, or a fact points
+  at one that is;
+* **none of a fact's terms appears in the transcript**, so every expected fact is
+  provably there;
+* an id is duplicated or a term is empty;
+* a `not_discussed` section also expects facts or fields, or uses normal
+  defaults;
+* a `defaults_expected` section doesn't use normal defaults;
+* a forbidden term overlaps an expected fact.
+
+It **warns** when a transcript is outside 250–600 words. Cases tagged `sparse`
+are exempt.
+
+## What a run contains
+
+A run is a configuration plus the files it writes.
+
+**Configuration (`RunConfig`).**
+
+| Field | Meaning |
+|---|---|
+| `label` | Name shown in the UI and CLI |
+| `provider` | `mock`, `bedrock`, `oracle` or `null` |
+| `model_id`, `structured_mode`, `effort` | Bedrock overrides |
+| `reps` | Repetitions per case; default 2, range 1–20 |
+| `case_ids`, `tags` | Filters on which cases run |
+| `judge`, `judge_model_id` | Optional Bedrock judge |
+| `seed` | Seed for the bootstrap; default 0, so results are reproducible |
+| `concurrency` | Parallel cases; default 4, range 1–16 |
+| `case_timeout_s` | Wall-clock ceiling per case; default 600 |
+
+**Files written:**
+
+```
+runs/<run_id>/
+  config.json      the run configuration
+  results.jsonl    one row per case × repetition
+  errors.jsonl     infrastructure failures, never scored
+  summary.json     per-metric mean, 95% interval and n, per tag, costs, latency
+  cases/<id>.json  snapshot of each case used
+```
+
+* **Results rows (`results.jsonl`)** each record:
+  * `status`: `ok`, `refused`, `truncated` or `invalid`;
+  * per-metric scores;
+  * grader details: missed facts, forbidden terms found with a snippet, field
+    mismatches (expected vs got), sections handled wrongly, missing flags and
+    follow-ups;
+  * the raw model output and the post-processed note;
+  * tokens, latency and cost.
+* **Error rows (`errors.jsonl`)** carry a `failure_class`: `timeout`,
+  `throttling`, `network`, `llm_error` or `internal`. They never enter the
+  metrics.
+
+### Inside a run
+
+1. Load and validate the cases, then filter them by id or tag.
+2. Plan every case × repetition and run them in a thread pool (`concurrency`),
+   each under the `case_timeout_s` ceiling.
+3. Call the **production** generator: the same prompt builder and Bedrock
+   adapter, with the run's model, mode and effort.
+4. Classify the outcome:
+   * **infrastructure error:** written to `errors.jsonl`;
+   * **refusal:** status `refused`;
+   * **output limit reached:** status `truncated`;
+   * **unparseable output:** status `invalid`, with `schema_valid = 0`;
+   * **otherwise:** run the **production** post-processor, then the graders (and
+     the judge, if on), and append the row to `results.jsonl`.
+5. Update progress in the store as rows land.
+6. Summarise each metric:
+   * pass/fail metrics use a Wilson interval;
+   * fractional metrics use a seeded bootstrap with 1,000 resamples;
+   * the noise floor is the half-width of the `fact_recall` interval.
+
 ## Running
 
 ```bash
