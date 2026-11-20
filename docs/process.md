@@ -34,6 +34,16 @@ flowchart TB
     REV -->|"findings + decided fixes"| C --> BE2
     UX -->|"docs/design/ui-design.md"| FE2
     BE2 & FE2 --> V["Coordinator: gates re-run, end-to-end<br/>Playwright run of the mocked stack"]
+
+    subgraph P4["Phase 4: evaluations and in-app docs"]
+        ES["Coordinator writes eval-spec.md"]
+        EF["Evals UI agent (Sonnet)"]
+        EB["Evals backend agent (Sonnet)"]
+        DF["Docs tab agent (Sonnet)<br/>facts verified against code by coordinator"]
+    end
+    V --> ES --> EF & EB
+    EF -->|"binding response shapes"| EB
+    EB & EF --> DF --> V2["Final end-to-end run on the real mocked stack"]
 ```
 
 Ground rules the agents worked under:

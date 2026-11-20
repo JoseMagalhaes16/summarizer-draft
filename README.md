@@ -11,8 +11,17 @@ surgery, euthanasia, discharge summaries, or your own.
 * **Frontend:** React 19 + TypeScript + Vite. Paste a transcript, pick a
   template, then review, edit and copy the note.
 * **Mock mode:** runs the whole stack locally with no AWS account and no LLM.
+* **Evaluations:** a case set, graders and runner, with an **Evaluations** tab
+  for comparing prompts, models and settings with confidence intervals.
+* **In-app docs:** a **Docs** tab with diagrams explaining the prompt, the
+  Bedrock request, retries, edge-case behaviour and multiple outputs per visit.
 
 ![Generated note](docs/screenshots/note-completed.png)
+
+| | |
+|---|---|
+| ![New note](docs/screenshots/new-note.png) | ![Draft another note from the same transcript](docs/screenshots/draft-another.png) |
+| ![Evaluation run](docs/screenshots/eval-run.png) | ![Docs: edge cases](docs/screenshots/docs-edge-cases.png) |
 
 ## Quick start (mocked, no AWS needed)
 
@@ -92,6 +101,9 @@ not yet in the template. See [ADR-0011](docs/adr/0011-security-privacy-baseline.
 | [How it works](docs/architecture/overview.md) | Architecture, sequence, data-model and state diagrams; prompt and schema pipeline; running modes |
 | [Specification](docs/design/spec.md) | The implementation contract: domain model, HTTP API, generation pipeline, configuration |
 | [UI design direction](docs/design/ui-design.md) | Results of the UI/UX review and the design system |
+| [Evaluations](docs/evals/README.md) | Evaluation strategy: metrics, ground truth, self-test, running against Bedrock, CI gate |
+| [Evaluation spec](docs/design/eval-spec.md) | Contract for the evaluation subsystem and the Evaluations tab |
+| In-app **Docs** tab (`/docs`) | Prompt structure with a live request inspector, edge cases, Bedrock call and retries, one call vs two, SOAP + client note |
 | [ADRs](docs/adr/README.md) | Every architecture decision, with options considered |
 | [Competitor research](docs/research/competitors.md) | How CoVet, ScribbleVet, Talkatoo, VetRec, HappyDoc, Scribenote, Heidi and others handle templates |
 | [Bedrock notes](docs/research/bedrock-notes.md) | Model IDs, structured output on InvokeModel, IAM, Lambda considerations |
@@ -114,10 +126,18 @@ make test
 ```
 
 ```bash
+make eval
+```
+
+```bash
 make lint
 ```
 
 * `make test` runs pytest with coverage and Vitest.
+* `make eval` runs the evaluation suite against the mock (`make eval-oracle` runs
+  the harness self-test). Against Bedrock, run
+  `python -m vetscribe.evals.cli run --provider bedrock`; see
+  [docs/evals/README.md](docs/evals/README.md).
 * `make lint` runs ruff, mypy, ESLint and `tsc`.
 * CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the same
   checks plus `cfn-lint`.
