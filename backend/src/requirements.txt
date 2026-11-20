@@ -1,0 +1,6 @@
+# Runtime dependencies for the Lambda build (sam build). Pinned: do not rely on the
+# boto3 bundled with the Lambda runtime (Bedrock structured-output params need a recent SDK).
+boto3==1.44.7
+pydantic==2.14.4
+aws-lambda-powertools==3.41.0
+python-ulid==4.2.0
