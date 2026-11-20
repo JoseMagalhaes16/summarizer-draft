@@ -89,7 +89,7 @@ sequenceDiagram
 **Why asynchronous?** A long consultation with a large model can take longer than
 API Gateway's roughly 30 s integration timeout, and Python Lambdas can't stream
 responses natively. Returning `202` and polling keeps the API fast and simple. See
-[ADR-0005](../adr/0005-asynchronous-generation.md).
+[ADR-0005](../adr/0005-async-generation-polling.md).
 
 ---
 
@@ -302,4 +302,4 @@ flowchart LR
 * **Clinician in the loop:** `review_flags` and `used_defaults` badges make the vet
   confirm uncertain content. VetScribe is a documentation aid, not a diagnostic tool.
 
-See [ADR-0011](../adr/0011-security-and-privacy.md).
+See [ADR-0011](../adr/0011-security-privacy-baseline.md).
