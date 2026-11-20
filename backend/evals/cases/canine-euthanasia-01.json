@@ -1,0 +1,181 @@
+{
+  "id": "canine-euthanasia-01",
+  "title": "Euthanasia of a 15-year-old dog with arthritis and kidney disease",
+  "tags": [
+    "euthanasia",
+    "canine"
+  ],
+  "template_id": "builtin-euthanasia",
+  "patient": {
+    "name": "Rufus",
+    "species": "canine"
+  },
+  "transcript_file": "../transcripts/canine_euthanasia.txt",
+  "ground_truth": {
+    "source": "human-written",
+    "verified_by_vet": false,
+    "notes": ""
+  },
+  "expectations": {
+    "fields": [
+      {
+        "section_id": "method",
+        "key": "agent",
+        "expected": "pentobarbital"
+      },
+      {
+        "section_id": "method",
+        "key": "time",
+        "expected": "3:42 pm"
+      }
+    ],
+    "facts": [
+      {
+        "id": "reason-arthritis",
+        "section_id": "reason",
+        "any_of": [
+          "arthritis",
+          "osteoarthritis"
+        ]
+      },
+      {
+        "id": "reason-kidney-disease",
+        "section_id": "reason",
+        "any_of": [
+          "kidney"
+        ]
+      },
+      {
+        "id": "reason-not-eating",
+        "section_id": "reason",
+        "any_of": [
+          "not eating",
+          "stopped eating",
+          "hasn't eaten",
+          "has not eaten",
+          "not eaten",
+          "appetite"
+        ]
+      },
+      {
+        "id": "consent-signed",
+        "section_id": "consent",
+        "any_of": [
+          "consent",
+          "signed"
+        ]
+      },
+      {
+        "id": "sedation-dexmedetomidine",
+        "section_id": "sedation",
+        "any_of": [
+          "dexmedetomidine"
+        ]
+      },
+      {
+        "id": "dose-five-ml",
+        "section_id": null,
+        "any_of": [
+          "5 ml"
+        ]
+      },
+      {
+        "id": "route-intravenous",
+        "section_id": null,
+        "any_of": [
+          "catheter",
+          "intravenous",
+          "iv"
+        ]
+      },
+      {
+        "id": "death-confirmed-heartbeat",
+        "section_id": null,
+        "any_of": [
+          "no heartbeat",
+          "heartbeat",
+          "no heart"
+        ]
+      },
+      {
+        "id": "owners-present",
+        "section_id": "owner_wishes",
+        "any_of": [
+          "present",
+          "stay with him",
+          "stayed with him",
+          "with him"
+        ]
+      },
+      {
+        "id": "private-cremation",
+        "section_id": "owner_wishes",
+        "any_of": [
+          "private cremation",
+          "cremation"
+        ]
+      },
+      {
+        "id": "paw-print",
+        "section_id": "owner_wishes",
+        "any_of": [
+          "paw print"
+        ]
+      },
+      {
+        "id": "lock-of-fur",
+        "section_id": "owner_wishes",
+        "any_of": [
+          "fur"
+        ]
+      },
+      {
+        "id": "pet-loss-support",
+        "section_id": "support",
+        "any_of": [
+          "support",
+          "grief",
+          "pet loss"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "id": "unstated-agents",
+        "any_of": [
+          "propofol",
+          "ketamine",
+          "t-61",
+          "euthasol"
+        ]
+      },
+      {
+        "id": "unstated-diagnosis",
+        "any_of": [
+          "cancer",
+          "neoplasia",
+          "tumor"
+        ]
+      }
+    ],
+    "action_items": [
+      {
+        "id": "cremation-ashes",
+        "any_of": [
+          "ashes",
+          "cremation"
+        ]
+      },
+      {
+        "id": "follow-up-call",
+        "any_of": [
+          "call",
+          "check in"
+        ]
+      }
+    ],
+    "not_discussed": [],
+    "defaults_expected": [],
+    "review_flags": []
+  }
+}

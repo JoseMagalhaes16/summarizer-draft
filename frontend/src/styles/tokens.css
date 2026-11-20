@@ -1,0 +1,117 @@
+@import '@fontsource/atkinson-hyperlegible-next/latin-400.css';
+@import '@fontsource/atkinson-hyperlegible-next/latin-600.css';
+@import '@fontsource/atkinson-hyperlegible-next/latin-700.css';
+@import '@fontsource/atkinson-hyperlegible-mono/latin-400.css';
+
+:root {
+  color-scheme: light;
+
+  /* Colour: drape green on exam-table grey (see docs/design/ui-design.md) */
+  --c-bg: #eef2ef; /* exam table */
+  --c-surface: #ffffff; /* sheet, inputs */
+  --c-surface-2: #f4f7f5;
+  --c-border: #d5dcd8; /* rule */
+  --c-border-strong: #aab6b0;
+  --c-text: #1e2a28; /* ink */
+  --c-text-muted: #45544f;
+  --c-text-faint: #5b6a65;
+
+  --c-accent: #2f6b4f; /* drape green */
+  --c-accent-hover: #245640;
+  --c-accent-soft: #e0eee6;
+  --c-accent-text: #245640;
+  --c-on-accent: #ffffff;
+
+  --c-warn-bg: #fcf1da; /* flag amber */
+  --c-warn-border: #e6c98a;
+  --c-warn-text: #8a5300;
+  --c-danger: #b42318; /* alert red */
+  --c-danger-hover: #912018;
+  --c-on-danger: #ffffff;
+  --c-danger-bg: #fdecea;
+  --c-danger-border: #f0b4ae;
+  --c-info-bg: #e6ece8;
+  --c-info-text: #33423d;
+
+  --c-focus: #0b6bcb;
+  --c-skeleton: #e3e9e5;
+  --c-overlay: rgb(16 28 24 / 55%);
+  --c-toast-bg: #1e2a28;
+  --c-toast-text: #f2f6f4;
+
+  /* Spacing: 4/8px scale */
+  --s-0: 2px;
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+
+  /* Radius by hierarchy: sheet 10, controls 6, chips round */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-pill: 999px;
+
+  /* Shadows are for overlays only (menus, dialogs, toasts) */
+  --shadow-menu: 0 6px 16px rgb(16 28 24 / 14%), 0 1px 3px rgb(16 28 24 / 10%);
+  --shadow-dialog: 0 16px 40px rgb(16 28 24 / 24%);
+
+  --font-sans: 'Atkinson Hyperlegible Next', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --font-mono: 'Atkinson Hyperlegible Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Type scale: 1.2 ratio from 16px */
+  --fs-sm: 0.8333rem; /* 13.3 */
+  --fs-xs: var(--fs-sm);
+  --fs-md: 1rem; /* 16 */
+  --fs-lg: 1.2rem; /* 19.2 */
+  --fs-xl: 1.44rem; /* 23 */
+  --fs-2xl: 1.728rem; /* 27.6 */
+  --fs-3xl: 2.0736rem; /* 33 */
+
+  --sidebar-w: 232px;
+  --content-max: 1080px;
+  --measure: 68ch;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --c-bg: #121816;
+    --c-surface: #1a211f;
+    --c-surface-2: #212a27;
+    --c-border: #2e3834;
+    --c-border-strong: #4a5852;
+    --c-text: #e6ece9;
+    --c-text-muted: #b2beb9;
+    --c-text-faint: #98a7a1;
+
+    --c-accent: #7fc3a0;
+    --c-accent-hover: #9bd3b6;
+    --c-accent-soft: #1f3a2d;
+    --c-accent-text: #8fcfae;
+    --c-on-accent: #0d1f17;
+
+    --c-warn-bg: #2d2414;
+    --c-warn-border: #6b5424;
+    --c-warn-text: #f2c46d;
+    --c-danger: #f97066;
+    --c-danger-hover: #fda29b;
+    --c-on-danger: #2a0d0a;
+    --c-danger-bg: #3a1a17;
+    --c-danger-border: #7a2f29;
+    --c-info-bg: #252f2b;
+    --c-info-text: #c3cec9;
+
+    --c-focus: #79b8ff;
+    --c-skeleton: #28332f;
+    --c-overlay: rgb(0 0 0 / 62%);
+    --c-toast-bg: #e6ece9;
+    --c-toast-text: #1e2a28;
+
+    --shadow-menu: 0 6px 16px rgb(0 0 0 / 50%);
+    --shadow-dialog: 0 16px 40px rgb(0 0 0 / 60%);
+  }
+}

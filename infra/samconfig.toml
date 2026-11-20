@@ -1,0 +1,40 @@
+version = 0.1
+
+[default.global.parameters]
+stack_name = "vetscribe-dev"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.validate.parameters]
+lint = true
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_s3 = true
+region = "us-east-1"
+parameter_overrides = [
+  "Stage=dev",
+  "BedrockModelId=us.anthropic.claude-opus-5-5",
+  "BedrockFoundationModelId=anthropic.claude-opus-5-5",
+  "BedrockStructuredMode=output_config",
+  "CorsAllowOrigin=*",
+]
+
+[prod.global.parameters]
+stack_name = "vetscribe-prod"
+
+[prod.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_s3 = true
+region = "us-east-1"
+parameter_overrides = [
+  "Stage=prod",
+  "BedrockModelId=us.anthropic.claude-opus-5-5",
+  "BedrockFoundationModelId=anthropic.claude-opus-5-5",
+  "BedrockStructuredMode=output_config",
+  "CorsAllowOrigin=https://app.example.com",
+]

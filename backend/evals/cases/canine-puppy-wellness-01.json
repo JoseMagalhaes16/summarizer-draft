@@ -1,0 +1,218 @@
+{
+  "id": "canine-puppy-wellness-01",
+  "title": "10-week-old puppy: second DHPP, parasite prevention, vaccine schedule",
+  "tags": [
+    "wellness",
+    "canine",
+    "puppy"
+  ],
+  "template_id": "builtin-wellness",
+  "patient": {
+    "name": "Juno",
+    "species": "canine"
+  },
+  "transcript_file": "../transcripts/canine_puppy_wellness.txt",
+  "ground_truth": {
+    "source": "human-written",
+    "verified_by_vet": false,
+    "notes": ""
+  },
+  "expectations": {
+    "fields": [
+      {
+        "section_id": "vitals",
+        "key": "temperature",
+        "expected": "101.9 F"
+      },
+      {
+        "section_id": "vitals",
+        "key": "heart_rate",
+        "expected": "140 bpm"
+      },
+      {
+        "section_id": "vitals",
+        "key": "resp_rate",
+        "expected": "32 breaths/min"
+      },
+      {
+        "section_id": "vitals",
+        "key": "weight",
+        "expected": "5.6 kg"
+      },
+      {
+        "section_id": "vitals",
+        "key": "bcs",
+        "expected": "5/9"
+      },
+      {
+        "section_id": "vitals",
+        "key": "mm",
+        "expected": "pink and moist"
+      },
+      {
+        "section_id": "vitals",
+        "key": "crt",
+        "expected": "<2 s"
+      },
+      {
+        "section_id": "vitals",
+        "key": "pain_score",
+        "expected": ""
+      }
+    ],
+    "facts": [
+      {
+        "id": "second-dhpp-today",
+        "section_id": "vaccines",
+        "any_of": [
+          "dhpp",
+          "da2pp",
+          "distemper"
+        ]
+      },
+      {
+        "id": "next-visit-14-weeks",
+        "section_id": null,
+        "any_of": [
+          "14 weeks",
+          "4 weeks"
+        ]
+      },
+      {
+        "id": "rabies-planned",
+        "section_id": null,
+        "any_of": [
+          "rabies"
+        ]
+      },
+      {
+        "id": "lepto-planned",
+        "section_id": null,
+        "any_of": [
+          "lepto"
+        ]
+      },
+      {
+        "id": "heartworm-flea-chewable",
+        "section_id": "parasite_prevention",
+        "any_of": [
+          "chewable",
+          "monthly"
+        ]
+      },
+      {
+        "id": "fecal-test",
+        "section_id": null,
+        "any_of": [
+          "fecal"
+        ]
+      },
+      {
+        "id": "avoid-public-areas",
+        "section_id": null,
+        "any_of": [
+          "public grass",
+          "dog park"
+        ]
+      },
+      {
+        "id": "reaction-warning",
+        "section_id": null,
+        "any_of": [
+          "facial swelling",
+          "hives",
+          "swelling"
+        ]
+      },
+      {
+        "id": "microchip",
+        "section_id": null,
+        "any_of": [
+          "microchip"
+        ]
+      },
+      {
+        "id": "baby-teeth",
+        "section_id": "physical_exam",
+        "any_of": [
+          "baby teeth",
+          "deciduous",
+          "puppy teeth"
+        ]
+      },
+      {
+        "id": "stool-soft-then-normal",
+        "section_id": "history",
+        "any_of": [
+          "soft"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "id": "unnamed-preventive-brand",
+        "any_of": [
+          "nexgard",
+          "simparica",
+          "heartgard",
+          "bravecto",
+          "trifexis",
+          "credelio"
+        ]
+      },
+      {
+        "id": "unnamed-dewormer",
+        "any_of": [
+          "pyrantel",
+          "fenbendazole",
+          "panacur",
+          "ponazuril"
+        ]
+      },
+      {
+        "id": "parasite-result-invented",
+        "any_of": [
+          "positive for",
+          "giardia",
+          "roundworm",
+          "hookworm",
+          "whipworm"
+        ]
+      }
+    ],
+    "defaults_expected": [
+      "physical_exam"
+    ],
+    "action_items": [
+      {
+        "id": "fecal-result",
+        "any_of": [
+          "fecal"
+        ]
+      },
+      {
+        "id": "return-14-weeks",
+        "any_of": [
+          "14 weeks",
+          "4 weeks"
+        ]
+      },
+      {
+        "id": "start-prevention",
+        "any_of": [
+          "heartworm",
+          "flea"
+        ]
+      },
+      {
+        "id": "avoid-public-places",
+        "any_of": [
+          "public",
+          "dog park"
+        ]
+      }
+    ],
+    "not_discussed": [],
+    "review_flags": []
+  }
+}

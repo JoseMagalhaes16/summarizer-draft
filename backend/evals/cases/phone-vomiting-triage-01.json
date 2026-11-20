@@ -1,0 +1,180 @@
+{
+  "id": "phone-vomiting-triage-01",
+  "title": "Phone triage: pug vomiting, possible garbage ingestion, same-day appointment",
+  "tags": [
+    "phone",
+    "canine",
+    "triage"
+  ],
+  "template_id": "builtin-phone",
+  "patient": {
+    "name": "Waffles",
+    "species": "canine"
+  },
+  "transcript_file": "../transcripts/phone_vomiting_triage.txt",
+  "ground_truth": {
+    "source": "human-written",
+    "verified_by_vet": false,
+    "notes": ""
+  },
+  "expectations": {
+    "facts": [
+      {
+        "id": "caller-identified",
+        "section_id": "caller",
+        "any_of": [
+          "brandt",
+          "owner"
+        ]
+      },
+      {
+        "id": "vomiting-count",
+        "section_id": "concern",
+        "any_of": [
+          "vomit"
+        ]
+      },
+      {
+        "id": "yellow-foam",
+        "section_id": "concern",
+        "any_of": [
+          "yellow",
+          "bile",
+          "foam"
+        ]
+      },
+      {
+        "id": "trash-ingestion",
+        "section_id": "concern",
+        "any_of": [
+          "trash",
+          "garbage"
+        ]
+      },
+      {
+        "id": "lethargy",
+        "section_id": null,
+        "any_of": [
+          "lethargic",
+          "lethargy",
+          "quiet"
+        ]
+      },
+      {
+        "id": "urgent-same-day",
+        "section_id": "triage",
+        "any_of": [
+          "urgent",
+          "same-day",
+          "same day",
+          "today"
+        ]
+      },
+      {
+        "id": "foreign-body-concern",
+        "section_id": "triage",
+        "any_of": [
+          "foreign body",
+          "obstruction",
+          "blockage"
+        ]
+      },
+      {
+        "id": "withhold-food",
+        "section_id": "advice",
+        "any_of": [
+          "withhold",
+          "no food",
+          "not feed",
+          "any food",
+          "hold food"
+        ]
+      },
+      {
+        "id": "small-sips-of-water",
+        "section_id": "advice",
+        "any_of": [
+          "sips"
+        ]
+      },
+      {
+        "id": "no-human-medicines",
+        "section_id": "advice",
+        "any_of": [
+          "ibuprofen",
+          "human"
+        ]
+      },
+      {
+        "id": "appointment-2-pm",
+        "section_id": "disposition",
+        "any_of": [
+          "2 pm",
+          "2:00",
+          "14:00"
+        ]
+      },
+      {
+        "id": "er-if-worse",
+        "section_id": "disposition",
+        "any_of": [
+          "emergency"
+        ]
+      },
+      {
+        "id": "bring-packaging",
+        "section_id": null,
+        "any_of": [
+          "packaging",
+          "trash bag"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "id": "unconfirmed-diagnosis",
+        "any_of": [
+          "pancreatitis",
+          "parvovirus",
+          "gdv"
+        ]
+      },
+      {
+        "id": "unmentioned-drugs",
+        "any_of": [
+          "famotidine",
+          "metoclopramide",
+          "maropitant",
+          "cerenia",
+          "ondansetron"
+        ]
+      }
+    ],
+    "action_items": [
+      {
+        "id": "attend-2pm-appointment",
+        "any_of": [
+          "2 pm",
+          "appointment"
+        ]
+      },
+      {
+        "id": "withhold-food",
+        "any_of": [
+          "food"
+        ]
+      },
+      {
+        "id": "bring-packaging",
+        "any_of": [
+          "packaging",
+          "trash"
+        ]
+      }
+    ],
+    "fields": [],
+    "not_discussed": [],
+    "defaults_expected": [],
+    "review_flags": []
+  }
+}
