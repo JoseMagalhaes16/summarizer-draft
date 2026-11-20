@@ -145,6 +145,8 @@ export function useRegenerateNote(id: string) {
       qc.setQueryData(keys.note(id), n);
       void qc.invalidateQueries({ queryKey: [...keys.notes, 'list'] });
     },
+    // e.g. 409 GENERATION_IN_PROGRESS: our copy of the note is stale, so refresh it.
+    onError: () => void qc.invalidateQueries({ queryKey: keys.note(id), exact: true }),
   });
 }
 

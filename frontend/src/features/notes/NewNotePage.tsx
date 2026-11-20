@@ -1,9 +1,11 @@
 import { useId, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { useCreateNote, useTemplates } from '../../api/hooks';
-import { MAX_TRANSCRIPT_CHARS, type Patient } from '../../api/types';
+import type { Patient } from '../../api/types';
 import { Menu } from '../../components/Menu';
 import { ErrorState, LoadingBlock, PageHead, Callout } from '../../components/ui';
+import { isPayloadTooLarge } from '../../lib/errors';
+import { TRANSCRIPT_LIMIT_HELP, transcriptUsage } from '../../lib/transcriptLimits';
 import { Link } from 'react-router';
 import { SAMPLE_TRANSCRIPTS } from '../../samples/transcripts';
 import { validateNewNote } from './newNoteValidation';
@@ -30,12 +32,15 @@ export function NewNotePage() {
   const [patient, setPatient] = useState<Patient>({});
   const [clinician, setClinician] = useState('');
   const [patientOpen, setPatientOpen] = useState(false);
+  const [suggestedId, setSuggestedId] = useState<string | null>(null);
 
   // Until the user picks one, the first template is preselected.
   const templateId = chosenTemplateId ?? templates.data?.[0]?.id ?? null;
 
   const { valid, errors } = useMemo(() => validateNewNote(templateId, transcript), [templateId, transcript]);
-  const over = transcript.length > MAX_TRANSCRIPT_CHARS;
+  const usage = useMemo(() => transcriptUsage(transcript), [transcript]);
+  const suggested = suggestedId && suggestedId !== templateId ? templates.data?.find((t) => t.id === suggestedId) : undefined;
+  const tooLarge = isPayloadTooLarge(create.error);
 
   function loadSample(id: string) {
     const s = SAMPLE_TRANSCRIPTS.find((x) => x.id === id);
@@ -43,8 +48,8 @@ export function NewNotePage() {
     setTranscript(s.text);
     setPatient(s.patient);
     setPatientOpen(true);
-    const match = templates.data?.find((t) => t.appointment_type === s.appointment_type);
-    if (match) setTemplateId(match.id);
+    // Suggest, don't switch: the template stays whatever the user picked.
+    setSuggestedId(templates.data?.find((t) => t.appointment_type === s.appointment_type)?.id ?? null);
   }
 
   function onSubmit(e: FormEvent) {
@@ -60,18 +65,18 @@ export function NewNotePage() {
 
   return (
     <div className="page">
-      <PageHead title="New note" subtitle="Pick a template, paste the consult transcript, and VetScribe drafts the clinical note." />
+      <PageHead title="New note" subtitle="Choose a template, paste the consult transcript, and VetScribe drafts the clinical note." />
 
       <form className="stack" onSubmit={onSubmit} noValidate aria-label="New note">
         <section className="card card-pad stack-sm" aria-labelledby={`${uid}-tpl`}>
-          <h2 id={`${uid}-tpl`} className="section-title">
-            1. Template
+          <h2 id={`${uid}-tpl`} className="step-title">
+            <span className="step-num" aria-hidden="true">1</span> Template
           </h2>
           {templates.isLoading && <LoadingBlock label="Loading templates…" />}
           {templates.isError && <ErrorState error={templates.error} onRetry={() => void templates.refetch()} title="Couldn’t load templates" />}
           {templates.data && templates.data.length === 0 && (
             <Callout kind="warn">
-              No templates yet. <Link to="/templates/new">Create one</Link> first.
+              No templates yet. <Link to="/templates/new">Create a template</Link> to start drafting.
             </Callout>
           )}
           {templates.data && templates.data.length > 0 && <TemplatePicker templates={templates.data} value={templateId} onChange={setTemplateId} />}
@@ -79,8 +84,8 @@ export function NewNotePage() {
 
         <section className="card card-pad stack-sm" aria-labelledby={`${uid}-pat`}>
           <details className="collapse" open={patientOpen} onToggle={(e) => setPatientOpen(e.currentTarget.open)}>
-            <summary id={`${uid}-pat`}>
-              2. Patient details <span className="faint" style={{ fontWeight: 400 }}>(optional)</span>
+            <summary id={`${uid}-pat`} className="step-title">
+              <span className="step-num" aria-hidden="true">2</span> Patient details <span className="optional">(optional)</span>
             </summary>
             <div className="grid-3" style={{ marginTop: 'var(--s-3)' }}>
               {PATIENT_FIELDS.map((f) => (
@@ -105,8 +110,8 @@ export function NewNotePage() {
 
         <section className="card card-pad stack-sm" aria-labelledby={`${uid}-tx`}>
           <div className="row-between">
-            <h2 id={`${uid}-tx`} className="section-title">
-              3. Transcript
+            <h2 id={`${uid}-tx`} className="step-title">
+              <span className="step-num" aria-hidden="true">3</span> Transcript
             </h2>
             <Menu label="Load sample" align="right">
               {(close) =>
@@ -126,6 +131,23 @@ export function NewNotePage() {
               }
             </Menu>
           </div>
+          {suggested && (
+            <p className="suggest" role="status">
+              <span>
+                This sample fits the <strong>{suggested.name}</strong> template.
+              </span>
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => {
+                  setTemplateId(suggested.id);
+                  setSuggestedId(null);
+                }}
+              >
+                Use {suggested.name}
+              </button>
+            </p>
+          )}
           <div className="field">
             <label htmlFor={`${uid}-text`} className="sr-only">
               Transcript
@@ -137,27 +159,33 @@ export function NewNotePage() {
               placeholder="Paste the consultation transcript here…"
               value={transcript}
               onChange={(e) => setTranscript(e.target.value)}
-              aria-invalid={over}
+              aria-invalid={usage.over || tooLarge}
               aria-describedby={`${uid}-count`}
             />
-            <div className="row-between">
-              <span id={`${uid}-count`} className={`counter ${over ? 'over' : ''}`} aria-live="polite">
-                {transcript.length.toLocaleString('en-US')} / {MAX_TRANSCRIPT_CHARS.toLocaleString('en-US')} characters
-              </span>
-              {over && errors.transcript && <span className="error">{errors.transcript}</span>}
+            <div id={`${uid}-count`} aria-live="polite">
+              {usage.over && errors.transcript ? (
+                <span className="error">{errors.transcript}</span>
+              ) : (
+                usage.near && <span className="counter">{usage.label}</span>
+              )}
             </div>
           </div>
+          {tooLarge && (
+            <Callout kind="danger" role="alert" title="This transcript is too large to send">
+              <p>{TRANSCRIPT_LIMIT_HELP}</p>
+            </Callout>
+          )}
         </section>
 
-        {create.isError && (
+        {create.isError && !tooLarge && (
           <ErrorState
             error={create.error}
-            title={create.error instanceof ApiError && create.error.code === 'VALIDATION_ERROR' ? 'Please check your input' : 'Couldn’t start generation'}
+            title={create.error instanceof ApiError && create.error.code === 'VALIDATION_ERROR' ? 'Check your input' : 'Couldn’t start drafting'}
           />
         )}
 
         <div className="form-foot">
-          <p className="muted small">Notes are AI-drafted. Review flagged items before filing to the patient record.</p>
+          <p className="muted small">VetScribe writes drafts. Check the flagged items before you file.</p>
           <button type="submit" className="btn btn-primary btn-lg" disabled={!valid || create.isPending}>
             {create.isPending ? 'Starting…' : 'Generate note'}
           </button>

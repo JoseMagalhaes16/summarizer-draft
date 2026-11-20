@@ -3,9 +3,9 @@ import { ApiError } from '../api/client';
 import type { NoteStatus } from '../api/types';
 import { Icon, type IconName } from './Icon';
 
-const STATUS: Record<NoteStatus, { label: string; cls: string; pulse?: boolean }> = {
-  pending: { label: 'Queued', cls: 'badge-info', pulse: true },
-  processing: { label: 'Generating', cls: 'badge-info', pulse: true },
+const STATUS: Record<NoteStatus, { label: string; cls: string }> = {
+  pending: { label: 'Queued', cls: 'badge-info' },
+  processing: { label: 'Drafting', cls: 'badge-info' },
   completed: { label: 'Completed', cls: 'badge-accent' },
   failed: { label: 'Failed', cls: 'badge-danger' },
 };
@@ -14,7 +14,7 @@ export function StatusBadge({ status }: { status: NoteStatus }) {
   const s = STATUS[status];
   return (
     <span className={`badge ${s.cls}`}>
-      <span className={`dot ${s.pulse ? 'pulse' : ''}`} aria-hidden="true" />
+      <span className="dot" aria-hidden="true" />
       {s.label}
     </span>
   );

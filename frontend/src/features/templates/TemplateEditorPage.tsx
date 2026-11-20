@@ -123,7 +123,7 @@ function TemplateEditor({ initial }: { initial: Template | null }) {
                 )
               }
             >
-              <Icon name="copy" size={16} /> Duplicate to customise
+              <Icon name="copy" size={16} /> Duplicate to edit
             </button>
           ) : (
             <>
@@ -131,7 +131,7 @@ function TemplateEditor({ initial }: { initial: Template | null }) {
                 Cancel
               </Link>
               <button type="button" className="btn btn-primary" disabled={!valid || saving || (!!initial && !dirty)} onClick={onSave}>
-                {saving ? 'Saving…' : initial ? 'Save changes' : 'Create template'}
+                {saving ? 'Saving…' : initial ? 'Save template' : 'Create template'}
               </button>
             </>
           )
@@ -140,7 +140,7 @@ function TemplateEditor({ initial }: { initial: Template | null }) {
 
       {readOnly && (
         <Callout kind="info" icon="lock" title="Built-in template">
-          <p>Built-in templates are read-only. Duplicate it to make your own editable copy.</p>
+          <p>Built-in templates are read-only. Duplicate this one to make your own copy you can edit.</p>
         </Callout>
       )}
       {saveError && (

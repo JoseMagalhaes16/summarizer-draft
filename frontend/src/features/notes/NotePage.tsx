@@ -2,12 +2,15 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { isActive, useDeleteNote, useNote, useRegenerateNote, useTemplates, useUpdateNote } from '../../api/hooks';
 import { ApiError } from '../../api/client';
-import type { Note, NoteResult, ResultSection } from '../../api/types';
+import type { Note, NoteResult } from '../../api/types';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Icon } from '../../components/Icon';
 import { useToast } from '../../components/Toast';
+import { Menu } from '../../components/Menu';
+import { RecordSheet, SheetEntry } from '../../components/RecordSheet';
 import { Callout, EmptyState, ErrorState, LoadingBlock, Skeleton, StatusBadge } from '../../components/ui';
-import { formatDateTime, formatNumber, humanise, patientLabel } from '../../lib/format';
+import { errorMessage } from '../../lib/errors';
+import { formatDateTime, formatNumber, patientLabel } from '../../lib/format';
 import { fullNoteText, isOmitted, missingBehaviors, renderSectionText } from '../../lib/renderNote';
 import { SectionBody } from './SectionView';
 import { SectionEditor } from './SectionEditor';
@@ -40,16 +43,18 @@ export function NotePage() {
       <div className="page">
         {nf ? (
           <EmptyState title="Note not found" action={<Link className="btn" to="/notes">Back to notes</Link>}>
-            It may have been deleted.
+            It may have been deleted. Go back to your notes to find another.
           </EmptyState>
         ) : (
-          <ErrorState error={query.error} onRetry={() => void query.refetch()} title="Couldn’t load note" />
+          <ErrorState error={query.error} onRetry={() => void query.refetch()} title="Couldn’t load this note" />
         )}
       </div>
     );
   }
   return <NoteView key={note.id} note={note} />;
 }
+
+const TIMEOUT_COPY = "Drafting didn't finish. Regenerate to try again.";
 
 function NoteView({ note }: { note: Note }) {
   const navigate = useNavigate();
@@ -68,6 +73,10 @@ function NoteView({ note }: { note: Note }) {
 
   const active = isActive(note.status);
   const behaviors = useMemo(() => missingBehaviors(note.template_snapshot), [note.template_snapshot]);
+
+  // Fade the sheet in only when this view watched the draft finish.
+  const [sawActive, setSawActive] = useState(active);
+  if (active && !sawActive) setSawActive(true);
 
   function startEdit() {
     if (!note.result) return;
@@ -91,8 +100,12 @@ function NoteView({ note }: { note: Note }) {
         setDraft(null);
         toast.show('Changes saved');
       },
-      onError: (e) => toast.show(e instanceof Error ? e.message : 'Save failed', 'error'),
+      onError: (e) => toast.show(errorMessage(e, 'Couldn’t save your changes. Try again.'), 'error'),
     });
+  }
+  function openRegenerate() {
+    setRegenTemplate(note.template_id);
+    setRegenOpen(true);
   }
   function doRegenerate() {
     regenerate.mutate(regenTemplate !== note.template_id ? regenTemplate : undefined, {
@@ -101,59 +114,54 @@ function NoteView({ note }: { note: Note }) {
         setEditing(false);
         setDraft(null);
       },
-      onError: (e) => toast.show(e instanceof Error ? e.message : 'Regenerate failed', 'error'),
+      onError: (e) => {
+        setRegenOpen(false);
+        toast.show(errorMessage(e, 'Couldn’t regenerate this note. Try again.'), 'error');
+      },
     });
   }
   function doDelete() {
     del.mutate(note.id, {
-      onSuccess: () => void navigate('/notes', { replace: true }),
+      onSuccess: () => {
+        toast.show('Note deleted');
+        void navigate('/notes', { replace: true });
+      },
       onError: (e) => {
         setConfirmDelete(false);
-        toast.show(e instanceof Error ? e.message : 'Delete failed', 'error');
+        toast.show(errorMessage(e, 'Couldn’t delete this note. Try again.'), 'error');
       },
     });
   }
   async function copy(text: string, what: string) {
     const ok = await copyToClipboard(text);
-    toast.show(ok ? `${what} copied to clipboard` : 'Copy failed — select the text and copy manually', ok ? 'info' : 'error');
+    toast.show(ok ? `${what} copied` : 'Couldn’t copy. Select the text and copy it manually.', ok ? 'info' : 'error');
   }
 
   const result = editing && draft ? draft : note.result;
   const completed = note.status === 'completed' && !!result;
-  const shownSections = result?.sections ?? [];
-  const hiddenCount = editing ? 0 : shownSections.filter((s) => isOmitted(s, behaviors)).length;
+  const failed = note.status === 'failed';
+  const hiddenCount = result && !editing ? result.sections.filter((s) => isOmitted(s, behaviors)).length : 0;
+  const details = [note.patient.species, note.patient.breed, note.patient.age, note.patient.sex, note.patient.weight].filter(Boolean).join(' · ');
+  const metaLine = [note.template_name, `Drafted ${formatDateTime(note.created_at)}`, note.clinician].filter(Boolean).join(' · ');
 
   return (
-    <div className="page">
+    <div className="page page-note">
       <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/notes">Notes</Link> <span aria-hidden="true">/</span> <span aria-current="page">{patientLabel(note.patient)}</span>
       </nav>
 
-      <header className="note-head card card-pad">
+      <header className="note-head">
         <div className="note-head-main">
-          <div className="row" style={{ flexWrap: 'wrap' }}>
-            <h1>{patientLabel(note.patient)}</h1>
+          <h1>{patientLabel(note.patient)}</h1>
+          <p className="muted">{details || 'No patient details'}</p>
+          <p className="note-meta">
+            <span>{metaLine}</span>
             <StatusBadge status={note.status} />
-            {note.edited && <span className="badge badge-info">Edited</span>}
-          </div>
-          <p className="muted">{[note.patient.species, note.patient.breed, note.patient.age, note.patient.sex, note.patient.weight].filter(Boolean).join(' · ') || 'No patient details'}</p>
-          <p className="muted small">
-            {note.template_name} · {formatDateTime(note.created_at)}
-            {note.clinician ? ` · ${note.clinician}` : ''}
+            {note.edited && <span className="badge">Edited</span>}
           </p>
         </div>
         <div className="page-actions">
-          {completed && !editing && (
-            <>
-              <button type="button" className="btn btn-primary" onClick={() => void copy(fullNoteText(note), 'Full note')}>
-                <Icon name="copy" size={16} /> Copy full note
-              </button>
-              <button type="button" className="btn" onClick={startEdit}>
-                <Icon name="edit" size={16} /> Edit
-              </button>
-            </>
-          )}
-          {editing && (
+          {editing ? (
             <>
               <button type="button" className="btn btn-primary" onClick={saveEdit} disabled={update.isPending}>
                 {update.isPending ? 'Saving…' : 'Save changes'}
@@ -162,136 +170,128 @@ function NoteView({ note }: { note: Note }) {
                 Cancel
               </button>
             </>
+          ) : (
+            <>
+              {completed && (
+                <button type="button" className="btn btn-primary" onClick={() => void copy(fullNoteText(note), 'Note')}>
+                  <Icon name="copy" size={16} /> Copy note
+                </button>
+              )}
+              {(completed || active) && (
+                <button type="button" className="btn" onClick={startEdit} disabled={active}>
+                  <Icon name="edit" size={16} /> Edit
+                </button>
+              )}
+              {active && (
+                <button type="button" className="btn" disabled>
+                  <Icon name="refresh" size={16} /> Regenerate
+                </button>
+              )}
+              <Menu label="More" align="right" buttonClassName="btn">
+                {(close) => (
+                  <>
+                    {!active && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          close();
+                          openRegenerate();
+                        }}
+                      >
+                        Regenerate
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="danger"
+                      onClick={() => {
+                        close();
+                        setConfirmDelete(true);
+                      }}
+                    >
+                      Delete note
+                    </button>
+                  </>
+                )}
+              </Menu>
+            </>
           )}
-          {!editing && (
-            <button
-              type="button"
-              className="btn"
-              onClick={() => {
-                setRegenTemplate(note.template_id);
-                setRegenOpen(true);
-              }}
-              disabled={active}
-            >
-              <Icon name="refresh" size={16} /> Regenerate
-            </button>
-          )}
-          <button type="button" className="btn btn-ghost danger" onClick={() => setConfirmDelete(true)} disabled={editing}>
-            <Icon name="trash" size={16} /> Delete
-          </button>
         </div>
       </header>
 
-      {active && <Progress note={note} />}
-
-      {note.status === 'failed' && (
+      {failed && (
         <Callout
           kind="danger"
           role="alert"
-          title={`Generation failed${note.error?.code ? ` (${note.error.code})` : ''}`}
+          title={note.error?.code === 'GENERATION_TIMEOUT' ? TIMEOUT_COPY : 'Drafting failed'}
           actions={
-            <button
-              type="button"
-              className="btn btn-sm"
-              onClick={() => {
-                setRegenTemplate(note.template_id);
-                setRegenOpen(true);
-              }}
-            >
+            <button type="button" className="btn btn-sm" onClick={openRegenerate}>
               <Icon name="refresh" size={14} /> Regenerate
             </button>
           }
         >
-          <p>{note.error?.message ?? 'The note could not be generated.'}</p>
+          {note.error?.code !== 'GENERATION_TIMEOUT' && (
+            <p>
+              {note.error?.message ?? 'The note could not be drafted.'} Regenerate to try again.
+              {note.error?.code && <span className="faint"> ({note.error.code})</span>}
+            </p>
+          )}
         </Callout>
       )}
 
+      {active && <Progress note={note} />}
+
       {completed && result && (
-        <>
-          <section className="card card-pad summary" aria-label="Visit summary">
-            <h2 className="eyebrow">Visit summary</h2>
-            {editing ? (
-              <div className="field">
-                <label htmlFor="summary-edit" className="sr-only">
-                  Visit summary
-                </label>
-                <textarea id="summary-edit" rows={2} value={result.visit_summary} onChange={(e) => setDraft({ ...result, visit_summary: e.target.value })} />
-              </div>
-            ) : (
-              <p className="summary-text">{result.visit_summary}</p>
-            )}
-          </section>
-
-          {result.review_flags.length > 0 && (
-            <section aria-label="Needs vet review" className="stack-sm">
-              {result.review_flags.map((f, i) => (
-                <Callout key={i} kind="warn" icon="alert" title="Needs vet review">
-                  <p>{f}</p>
-                </Callout>
-              ))}
-            </section>
-          )}
-
-          <div className="stack">
-            {shownSections.map((s, idx) => {
-              const behavior = behaviors[s.section_id];
-              const omitted = isOmitted(s, behaviors);
-              if (omitted && !showEmpty && !editing) return null;
-              return (
-                <SectionCard
-                  key={s.section_id}
-                  section={s}
-                  behavior={behavior}
-                  editing={editing}
-                  muted={omitted || s.not_discussed}
-                  onChange={(next) => setDraft({ ...result, sections: result.sections.map((x, i) => (i === idx ? next : x)) })}
-                  onCopy={() => void copy(renderSectionText(s, behaviors), `“${s.title}”`)}
-                />
-              );
-            })}
-          </div>
-
-          {hiddenCount > 0 && (
-            <button type="button" className="btn btn-ghost toggle-empty" onClick={() => setShowEmpty((v) => !v)} aria-pressed={showEmpty}>
-              {showEmpty ? 'Hide empty sections' : `Show empty sections (${hiddenCount})`}
-            </button>
-          )}
-
-          <section className="card card-pad stack-sm" aria-label="Action items">
-            <h2 className="eyebrow">Action items</h2>
-            {editing ? (
-              <ActionItemsEditor items={result.action_items} onChange={(action_items) => setDraft({ ...result, action_items })} />
-            ) : result.action_items.length ? (
-              <ul className="checklist">
-                {result.action_items.map((a, i) => (
-                  <li key={i}>
-                    <label className="check">
-                      <input type="checkbox" />
-                      <span>{a}</span>
+        <div className={`note-layout${sawActive ? ' fade-in' : ''}`}>
+          <Rail result={result} editing={editing} onActionItems={(action_items) => setDraft({ ...result, action_items })} />
+          <div className="note-main">
+            <RecordSheet label={`Note for ${patientLabel(note.patient)}`}>
+              <SheetEntry title="Summary" lead>
+                {editing ? (
+                  <div className="field">
+                    <label htmlFor="summary-edit" className="sr-only">
+                      Summary
                     </label>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="muted">No action items.</p>
+                    <textarea id="summary-edit" rows={3} value={result.visit_summary} onChange={(e) => setDraft({ ...result, visit_summary: e.target.value })} />
+                  </div>
+                ) : (
+                  <p>{result.visit_summary}</p>
+                )}
+              </SheetEntry>
+              {result.sections.map((s, idx) => {
+                const omitted = isOmitted(s, behaviors);
+                if (omitted && !showEmpty && !editing) return null;
+                return (
+                  <SheetEntry
+                    key={s.section_id}
+                    id={`entry-${s.section_id}`}
+                    title={s.title}
+                    flag={s.used_defaults ? 'Normal defaults: confirm' : undefined}
+                    muted={omitted || s.not_discussed}
+                    onCopy={!editing && !s.not_discussed ? () => void copy(renderSectionText(s, behaviors), s.title) : undefined}
+                  >
+                    {editing ? (
+                      <SectionEditor section={s} onChange={(next) => setDraft({ ...result, sections: result.sections.map((x, i) => (i === idx ? next : x)) })} />
+                    ) : (
+                      <SectionBody section={s} behavior={behaviors[s.section_id]} />
+                    )}
+                  </SheetEntry>
+                );
+              })}
+            </RecordSheet>
+
+            {hiddenCount > 0 && (
+              <button type="button" className="btn btn-ghost toggle-empty" onClick={() => setShowEmpty((v) => !v)} aria-pressed={showEmpty}>
+                {showEmpty ? 'Hide empty sections' : `Show empty sections (${hiddenCount})`}
+              </button>
             )}
-          </section>
-        </>
+            <TranscriptBox transcript={note.transcript} />
+            <ModelLine note={note} />
+          </div>
+        </div>
       )}
 
-      <details className="card card-pad collapse transcript-box">
-        <summary>Original transcript</summary>
-        <pre className="transcript-pre">{note.transcript}</pre>
-      </details>
-
-      {note.model_info && (
-        <footer className="model-info faint small">
-          <span>Provider: {note.model_info.provider}</span>
-          <span>Model: {note.model_info.model_id}</span>
-          <span>Tokens: {formatNumber(note.model_info.input_tokens)} in / {formatNumber(note.model_info.output_tokens)} out</span>
-          <span>Latency: {(note.model_info.latency_ms / 1000).toFixed(1)} s</span>
-        </footer>
-      )}
+      {!completed && !active && <TranscriptBox transcript={note.transcript} />}
 
       <ConfirmDialog
         open={confirmDelete}
@@ -309,7 +309,7 @@ function NoteView({ note }: { note: Note }) {
 
       <ConfirmDialog open={regenOpen} title="Regenerate note" confirmLabel="Regenerate" busy={regenerate.isPending} onConfirm={doRegenerate} onCancel={() => setRegenOpen(false)}>
         <p className="muted">
-          This creates a new draft from the original transcript.{note.edited ? ' Your manual edits will be discarded.' : ''}
+          This drafts a new note from the original transcript.{note.edited ? ' Your edits will be discarded.' : ''}
         </p>
         <div className="field">
           <label htmlFor="regen-template">Template</label>
@@ -328,6 +328,73 @@ function NoteView({ note }: { note: Note }) {
   );
 }
 
+function TranscriptBox({ transcript }: { transcript: string }) {
+  return (
+    <details className="collapse transcript-box">
+      <summary>Original transcript</summary>
+      <pre className="transcript-pre">{transcript}</pre>
+    </details>
+  );
+}
+
+function ModelLine({ note }: { note: Note }) {
+  const m = note.model_info;
+  if (!m) return null;
+  return (
+    <p className="model-info">
+      {m.provider} · {m.model_id} · {formatNumber(m.input_tokens)} in / {formatNumber(m.output_tokens)} out tokens · {(m.latency_ms / 1000).toFixed(1)} s
+    </p>
+  );
+}
+
+/** Sticky right rail: what to check before filing, and follow-ups. */
+function Rail({ result, editing, onActionItems }: { result: NoteResult; editing: boolean; onActionItems: (items: string[]) => void }) {
+  const defaults = result.sections.filter((s) => s.used_defaults && !s.not_discussed);
+  const count = result.review_flags.length + defaults.length;
+  return (
+    <aside className="note-rail" aria-label="Review">
+      <section className="rail-block" aria-labelledby="rail-check">
+        <h2 id="rail-check">
+          Check before filing <span className="count">({count})</span>
+        </h2>
+        {count > 0 ? (
+          <ul className="flag-list">
+            {result.review_flags.map((f, i) => (
+              <li key={`f${i}`}>{f}</li>
+            ))}
+            {defaults.map((s) => (
+              <li key={s.section_id}>
+                <a href={`#entry-${s.section_id}`}>{s.title}</a> uses normal defaults. Confirm them.
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted">Nothing flagged.</p>
+        )}
+      </section>
+      <section className="rail-block" aria-labelledby="rail-follow">
+        <h2 id="rail-follow">Follow-ups</h2>
+        {editing ? (
+          <ActionItemsEditor items={result.action_items} onChange={onActionItems} />
+        ) : result.action_items.length ? (
+          <ul className="checklist">
+            {result.action_items.map((a, i) => (
+              <li key={i}>
+                <label className="check">
+                  <input type="checkbox" />
+                  <span>{a}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted">No follow-ups.</p>
+        )}
+      </section>
+    </aside>
+  );
+}
+
 function Progress({ note }: { note: Note }) {
   // Count from creation for a fresh note; otherwise (e.g. regenerate) from when this view appeared.
   const [since] = useState(() => {
@@ -337,59 +404,30 @@ function Progress({ note }: { note: Note }) {
   const secs = useElapsedSeconds(since, true);
   const sections = note.template_snapshot?.sections ?? [];
   return (
-    <section className="stack" aria-label="Generation progress">
-      <div className="card card-pad progress" role="status" aria-live="polite">
-        <span className="spinner" aria-hidden="true" />
-        <div>
-          <div style={{ fontWeight: 600 }}>{note.status === 'pending' ? 'Queued…' : 'Drafting your note…'}</div>
-          <div className="muted small">
-            Elapsed: {secs}s · this usually takes 10–60 seconds. You can leave this page; the note will be in your history.
+    <div className="note-layout">
+      <div className="note-main">
+        <div className="progress-line">
+          <div role="status" aria-busy="true">
+            <strong>{note.status === 'pending' ? 'Queued…' : 'Drafting your note…'}</strong>
           </div>
+          <p className="muted small">Elapsed: {secs}s. This usually takes 10–60 seconds. You can leave this page; the note will be in your list.</p>
         </div>
+        <RecordSheet label="Note placeholder">
+          {[{ id: 'summary', title: 'Summary' }, ...sections].map((s) => (
+            <section className="entry is-skeleton" key={s.id} aria-hidden="true">
+              <div className="entry-margin">
+                <div className="entry-title muted">{s.title}</div>
+              </div>
+              <div className="entry-body">
+                <Skeleton />
+                <Skeleton width="88%" />
+                <Skeleton width="56%" />
+              </div>
+            </section>
+          ))}
+        </RecordSheet>
       </div>
-      {(sections.length ? sections : [null, null, null]).map((s, i) => (
-        <div className="card card-pad stack-sm" key={s?.id ?? i} aria-hidden="true">
-          <Skeleton width={s ? Math.min(40, 12 + s.title.length * 2) + '%' : '30%'} height={16} />
-          <Skeleton />
-          <Skeleton width="92%" />
-          <Skeleton width="64%" />
-        </div>
-      ))}
-    </section>
-  );
-}
-
-function SectionCard({
-  section,
-  behavior,
-  editing,
-  muted,
-  onChange,
-  onCopy,
-}: {
-  section: ResultSection;
-  behavior?: string;
-  editing: boolean;
-  muted: boolean;
-  onChange: (s: ResultSection) => void;
-  onCopy: () => void;
-}) {
-  return (
-    <section className={`card note-section ${muted ? 'is-muted' : ''}`} aria-label={section.title}>
-      <div className="card-head">
-        <div className="row" style={{ flexWrap: 'wrap' }}>
-          <h2>{section.title}</h2>
-          <span className="badge">{humanise(section.format)}</span>
-          {section.used_defaults && <span className="badge badge-warn">Normal defaults — confirm</span>}
-        </div>
-        {!editing && !section.not_discussed && (
-          <button type="button" className="btn btn-ghost btn-sm" onClick={onCopy} aria-label={`Copy section ${section.title}`}>
-            <Icon name="copy" size={14} /> Copy section
-          </button>
-        )}
-      </div>
-      <div className="card-body">{editing ? <SectionEditor section={section} onChange={onChange} /> : <SectionBody section={section} behavior={behavior} />}</div>
-    </section>
+    </div>
   );
 }
 
@@ -400,17 +438,17 @@ function ActionItemsEditor({ items, onChange }: { items: string[]; onChange: (it
         {items.map((it, i) => (
           <li key={i}>
             <label htmlFor={`action-${i}`} className="sr-only">
-              Action item {i + 1}
+              Follow-up {i + 1}
             </label>
             <input id={`action-${i}`} type="text" value={it} onChange={(e) => onChange(items.map((x, j) => (j === i ? e.target.value : x)))} />
-            <button type="button" className="btn btn-ghost btn-icon btn-sm" aria-label={`Remove action item ${i + 1}`} onClick={() => onChange(items.filter((_, j) => j !== i))}>
+            <button type="button" className="btn btn-ghost btn-icon btn-sm" aria-label={`Remove follow-up ${i + 1}`} onClick={() => onChange(items.filter((_, j) => j !== i))}>
               <Icon name="x" size={16} />
             </button>
           </li>
         ))}
       </ul>
       <button type="button" className="btn btn-sm" onClick={() => onChange([...items, ''])}>
-        <Icon name="plus" size={14} /> Add action item
+        <Icon name="plus" size={14} /> Add follow-up
       </button>
     </div>
   );

@@ -76,6 +76,7 @@ export type NoteErrorCode =
   | 'OUTPUT_TRUNCATED'
   | 'INVALID_MODEL_OUTPUT'
   | 'LLM_ERROR'
+  | 'GENERATION_TIMEOUT'
   | 'INTERNAL';
 
 export interface NoteError {
@@ -124,6 +125,8 @@ export interface Note {
   clinician: string;
   transcript: string;
   status: NoteStatus;
+  /** Identifies the current generation attempt; the UI doesn't display it. */
+  generation_id: string | null;
   error: NoteError | null;
   result: NoteResult | null;
   edited: boolean;
@@ -160,3 +163,5 @@ export interface Health {
 }
 
 export const MAX_TRANSCRIPT_CHARS = 200_000;
+/** The server also caps the UTF-8 size of the transcript. */
+export const MAX_TRANSCRIPT_BYTES = 300_000;

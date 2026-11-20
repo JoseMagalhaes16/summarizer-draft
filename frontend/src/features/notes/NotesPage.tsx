@@ -10,7 +10,7 @@ export function NotesPage() {
     <div className="page">
       <PageHead
         title="Notes"
-        subtitle="Your most recent consultation notes."
+        subtitle="Recent notes, newest first."
         actions={
           <Link to="/" className="btn btn-primary">
             New note
@@ -20,8 +20,8 @@ export function NotesPage() {
       {notes.isLoading && <LoadingBlock label="Loading notes…" />}
       {notes.isError && <ErrorState error={notes.error} onRetry={() => void notes.refetch()} title="Couldn’t load notes" />}
       {notes.data && notes.data.length === 0 && (
-        <EmptyState title="No notes yet" action={<Link to="/" className="btn btn-primary">Create your first note</Link>}>
-          Paste a consult transcript, choose a template, and your first structured note will appear here.
+        <EmptyState title="No notes yet" action={<Link to="/" className="btn btn-primary">Draft your first note</Link>}>
+          Paste a consult transcript and your first draft will appear here.
         </EmptyState>
       )}
       {notes.data && notes.data.length > 0 && (
@@ -49,7 +49,7 @@ export function NotesPage() {
                   <td>
                     <StatusBadge status={n.status} />
                   </td>
-                  <td className="summary-cell muted">{n.visit_summary ? truncate(n.visit_summary, 110) : <span className="faint">—</span>}</td>
+                  <td className="summary-cell muted">{n.visit_summary ? truncate(n.visit_summary, 110) : <span className="faint">Not ready yet</span>}</td>
                   <td className="nowrap">
                     <time dateTime={n.created_at} title={formatDateTime(n.created_at)}>
                       {relativeTime(n.created_at)}

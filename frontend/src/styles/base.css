@@ -12,15 +12,15 @@ body {
   margin: 0;
   font-family: var(--font-sans);
   font-size: var(--fs-md);
-  line-height: 1.5;
+  line-height: 1.6;
   color: var(--c-text);
   background: var(--c-bg);
   -webkit-font-smoothing: antialiased;
 }
 
 h1, h2, h3, h4, p { margin: 0; }
-h1 { font-size: var(--fs-2xl); line-height: 1.2; font-weight: 650; letter-spacing: -0.01em; }
-h2 { font-size: var(--fs-xl); line-height: 1.25; font-weight: 650; }
+h1 { font-size: var(--fs-2xl); line-height: 1.2; font-weight: 700; }
+h2 { font-size: var(--fs-xl); line-height: 1.25; font-weight: 700; }
 h3 { font-size: var(--fs-lg); line-height: 1.3; font-weight: 600; }
 
 a { color: var(--c-accent-text); text-decoration: none; }
@@ -50,7 +50,6 @@ button:disabled { cursor: not-allowed; }
 
 .muted { color: var(--c-text-muted); }
 .faint { color: var(--c-text-faint); }
-.mono { font-family: var(--font-mono); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

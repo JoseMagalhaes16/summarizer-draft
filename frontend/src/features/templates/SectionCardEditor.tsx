@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import type { MissingBehavior, SectionFormat } from '../../api/types';
 import { Icon } from '../../components/Icon';
 import { blankField, slugFor, type EditorSection } from './editorState';
@@ -9,6 +9,8 @@ const MISSING_HELP: Record<MissingBehavior, string> = {
   state_not_discussed: 'Shown as “Not discussed.” if the transcript has nothing relevant.',
   use_normal_defaults: 'Anything not mentioned is filled with the normal defaults below, flagged for the vet to confirm. Abnormal findings always override.',
 };
+
+const FORMAT_LABEL: Record<SectionFormat, string> = { paragraph: 'Paragraph', bullets: 'Bullet list', key_value: 'Labelled fields' };
 
 interface Props {
   section: EditorSection;
@@ -24,6 +26,7 @@ interface Props {
 
 export function SectionCardEditor({ section: s, index, total, otherIds, errors, readOnly, onChange, onMove, onRemove }: Props) {
   const uid = useId();
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const errCount = sectionErrorCount(errors, index);
   const open = s.open || errCount > 0;
   const err = (rest: string) => errors[sectionPath(index, rest)];
@@ -45,7 +48,7 @@ export function SectionCardEditor({ section: s, index, total, otherIds, errors, 
           <Icon name="chevron" size={16} style={{ transform: open ? undefined : 'rotate(-90deg)', transition: 'transform .12s' }} />
           <span className="sec-num">{index + 1}</span>
           <span className="sec-title-text">{label}</span>
-          <span className="badge">{s.format.replace('_', ' ')}</span>
+          <span className="badge">{FORMAT_LABEL[s.format]}</span>
           {s.required && <span className="badge badge-accent">Required</span>}
           {errCount > 0 && <span className="badge badge-danger">{errCount} issue{errCount === 1 ? '' : 's'}</span>}
         </button>
@@ -66,36 +69,16 @@ export function SectionCardEditor({ section: s, index, total, otherIds, errors, 
 
       {open && (
         <fieldset className="sec-body stack-sm" id={`${uid}-body`} disabled={readOnly}>
-          <div className="grid-2">
-            <div className="field">
-              <label htmlFor={`${uid}-title`}>
-                Title <span className="req" aria-hidden="true">*</span>
-              </label>
-              <input id={`${uid}-title`} type="text" value={s.title} maxLength={LIMITS.titleMax + 20} onChange={(e) => setTitle(e.target.value)} aria-invalid={!!err('title')} aria-describedby={err('title') ? `${uid}-title-e` : undefined} />
-              {err('title') && <span className="error" id={`${uid}-title-e`}>{err('title')}</span>}
-            </div>
-            <div className="field">
-              <label htmlFor={`${uid}-id`}>Section id</label>
-              <input
-                id={`${uid}-id`}
-                type="text"
-                className="mono"
-                value={s.id}
-                onChange={(e) => set({ id: e.target.value, idEdited: true })}
-                aria-invalid={!!err('id')}
-                aria-describedby={err('id') ? `${uid}-id-e` : `${uid}-id-h`}
-                spellCheck={false}
-              />
-              {err('id') ? (
-                <span className="error" id={`${uid}-id-e`}>{err('id')}</span>
-              ) : (
-                <span className="hint" id={`${uid}-id-h`}>{s.idEdited ? 'Custom id.' : 'Auto-generated from the title; edit to override.'}</span>
-              )}
-            </div>
+          <div className="field">
+            <label htmlFor={`${uid}-title`}>
+              Title <span className="req" aria-hidden="true">*</span>
+            </label>
+            <input id={`${uid}-title`} type="text" value={s.title} maxLength={LIMITS.titleMax + 20} onChange={(e) => setTitle(e.target.value)} aria-invalid={!!err('title')} aria-describedby={err('title') ? `${uid}-title-e` : undefined} />
+            {err('title') && <span className="error" id={`${uid}-title-e`}>{err('title')}</span>}
           </div>
 
           <div className="field">
-            <label htmlFor={`${uid}-instr`}>Instructions for the AI</label>
+            <label htmlFor={`${uid}-instr`}>What to capture</label>
             <textarea id={`${uid}-instr`} rows={3} value={s.instructions} onChange={(e) => set({ instructions: e.target.value })} placeholder="What belongs in this section? e.g. History, presenting complaint, owner observations…" aria-invalid={!!err('instructions')} />
             {err('instructions') && <span className="error">{err('instructions')}</span>}
           </div>
@@ -106,7 +89,7 @@ export function SectionCardEditor({ section: s, index, total, otherIds, errors, 
               <select id={`${uid}-format`} value={s.format} onChange={(e) => setFormat(e.target.value as SectionFormat)}>
                 <option value="paragraph">Paragraph</option>
                 <option value="bullets">Bullet list</option>
-                <option value="key_value">Key / value fields</option>
+                <option value="key_value">Labelled fields</option>
               </select>
             </div>
             <div className="field">
@@ -162,7 +145,7 @@ export function SectionCardEditor({ section: s, index, total, otherIds, errors, 
                         <input
                           id={`${uid}-f${j}-key`}
                           type="text"
-                          className="mono"
+                         
                           value={f.key}
                           spellCheck={false}
                           onChange={(e) => setField({ key: e.target.value, keyEdited: true })}
@@ -190,6 +173,28 @@ export function SectionCardEditor({ section: s, index, total, otherIds, errors, 
               )}
             </fieldset>
           )}
+
+          <details className="collapse" open={advancedOpen || !!err('id')} onToggle={(e) => setAdvancedOpen(e.currentTarget.open)}>
+            <summary>Advanced</summary>
+            <div className="field adv-field">
+              <label htmlFor={`${uid}-id`}>Section id</label>
+              <input
+                id={`${uid}-id`}
+                type="text"
+               
+                value={s.id}
+                onChange={(e) => set({ id: e.target.value, idEdited: true })}
+                aria-invalid={!!err('id')}
+                aria-describedby={err('id') ? `${uid}-id-e` : `${uid}-id-h`}
+                spellCheck={false}
+              />
+              {err('id') ? (
+                <span className="error" id={`${uid}-id-e`}>{err('id')}</span>
+              ) : (
+                <span className="hint" id={`${uid}-id-h`}>{s.idEdited ? 'Custom id.' : 'Made from the title. Change it only if another system needs a specific id.'}</span>
+              )}
+            </div>
+          </details>
         </fieldset>
       )}
     </li>

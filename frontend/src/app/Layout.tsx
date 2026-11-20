@@ -29,7 +29,7 @@ export function Layout() {
             <span className="nav-label">Templates</span>
           </NavLink>
         </nav>
-        <div className="sidebar-foot">AI-drafted notes. Always review before filing.</div>
+        <div className="sidebar-foot">Drafts only. Check each note before filing.</div>
       </aside>
       <div className="main">
         <div className="topbar">

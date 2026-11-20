@@ -5,11 +5,13 @@ export function Menu({
   label,
   children,
   align = 'left',
+  buttonClassName = 'btn btn-sm',
 }: {
   label: string;
   /** Render function receives close(). */
   children: (close: () => void) => ReactNode;
   align?: 'left' | 'right';
+  buttonClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
@@ -38,7 +40,7 @@ export function Menu({
     <div className="menu-wrap" ref={wrap}>
       <button
         type="button"
-        className="btn btn-sm"
+        className={buttonClassName}
         aria-haspopup="true"
         aria-expanded={open}
         aria-controls={open ? id : undefined}

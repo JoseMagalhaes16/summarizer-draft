@@ -1,4 +1,4 @@
-import { MAX_TRANSCRIPT_CHARS } from '../../api/types';
+import { transcriptUsage, TRANSCRIPT_LIMIT_HELP } from '../../lib/transcriptLimits';
 
 export interface NewNoteValidation {
   valid: boolean;
@@ -9,7 +9,6 @@ export function validateNewNote(templateId: string | null, transcript: string): 
   const errors: NewNoteValidation['errors'] = {};
   if (!templateId) errors.template = 'Choose a template.';
   if (!transcript.trim()) errors.transcript = 'Paste or type a transcript.';
-  else if (transcript.length > MAX_TRANSCRIPT_CHARS)
-    errors.transcript = `Transcript is too long (max ${MAX_TRANSCRIPT_CHARS.toLocaleString('en-US')} characters).`;
+  else if (transcriptUsage(transcript).over) errors.transcript = `This transcript is too long. ${TRANSCRIPT_LIMIT_HELP}`;
   return { valid: Object.keys(errors).length === 0, errors };
 }

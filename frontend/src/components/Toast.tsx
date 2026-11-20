@@ -30,7 +30,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div className="toasts" role="status" aria-live="polite">
         {items.map((t) => (
-          <div key={t.id} className={`toast ${t.kind === 'error' ? 'error' : ''}`}>
+          <div key={t.id} className={`toast ${t.kind === 'error' ? 'error' : ''}`} role={t.kind === 'error' ? 'alert' : undefined}>
             <Icon name={t.kind === 'error' ? 'alert' : 'check'} size={16} />
             {t.message}
           </div>

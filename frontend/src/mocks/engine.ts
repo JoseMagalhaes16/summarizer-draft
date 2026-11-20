@@ -1,5 +1,5 @@
 import type { Note, NoteResult, NoteSummary, Patient, ResultSection, Section, Template, TemplateInput } from '../api/types';
-import { MAX_TRANSCRIPT_CHARS } from '../api/types';
+import { MAX_TRANSCRIPT_BYTES, MAX_TRANSCRIPT_CHARS } from '../api/types';
 import { SEED_TEMPLATES } from './seed';
 
 /**
@@ -40,6 +40,8 @@ interface StoredNote extends Note {
   _ready_at: number;
   _processing_at: number;
   _fail: boolean;
+  /** Mock: generation never finishes (simulates the worker dying). */
+  _timeout: boolean;
 }
 
 export interface MockOptions {
@@ -120,6 +122,9 @@ export class MockEngine {
   createNote(body: unknown): Note {
     const b = (body ?? {}) as { template_id?: string; transcript?: string; patient?: Patient; clinician?: string };
     const details: unknown[] = [];
+    if (typeof b.transcript === 'string' && new TextEncoder().encode(b.transcript).length > MAX_TRANSCRIPT_BYTES) {
+      throw new MockApiError(413, 'PAYLOAD_TOO_LARGE', `Transcript is too large. The limit is ${MAX_TRANSCRIPT_CHARS.toLocaleString('en-US')} characters (${MAX_TRANSCRIPT_BYTES.toLocaleString('en-US')} bytes).`);
+    }
     if (!b.template_id) details.push({ field: 'template_id', message: 'Required' });
     if (typeof b.transcript !== 'string' || !b.transcript.trim()) details.push({ field: 'transcript', message: 'Transcript must not be blank' });
     else if (b.transcript.length > MAX_TRANSCRIPT_CHARS) details.push({ field: 'transcript', message: `Transcript exceeds ${MAX_TRANSCRIPT_CHARS} characters` });
@@ -158,7 +163,11 @@ export class MockEngine {
     if (!result || typeof result.visit_summary !== 'string' || !Array.isArray(result.sections) || !Array.isArray(result.action_items) || !Array.isArray(result.review_flags)) {
       throw new MockApiError(400, 'VALIDATION_ERROR', 'Invalid result', [{ field: 'result', message: 'Malformed NoteResult' }]);
     }
+    if (n.status === 'pending' || n.status === 'processing') throw new MockApiError(409, 'GENERATION_IN_PROGRESS', 'This note is still being drafted. Wait for it to finish before editing.');
     if (n.status !== 'completed') throw new MockApiError(409, 'NOT_COMPLETED', 'Only completed notes can be edited.');
+    if (new TextEncoder().encode(JSON.stringify(result)).length > MAX_TRANSCRIPT_BYTES) {
+      throw new MockApiError(413, 'PAYLOAD_TOO_LARGE', `The edited note is too large. The limit is ${MAX_TRANSCRIPT_BYTES.toLocaleString('en-US')} bytes.`);
+    }
     n.result = result;
     n.edited = true;
     n.updated_at = iso();
@@ -166,7 +175,10 @@ export class MockEngine {
   }
 
   regenerateNote(id: string, body: unknown): Note {
-    const n = this.mustNote(id);
+    const n = this.refresh(this.mustNote(id));
+    if (n.status === 'pending' || n.status === 'processing') {
+      throw new MockApiError(409, 'GENERATION_IN_PROGRESS', 'This note is still being drafted. Wait for it to finish, then regenerate.');
+    }
     const tid = (body as { template_id?: string } | null)?.template_id;
     const tpl = tid ? this.getTemplate(tid) : this.templates.get(n.template_id) ?? n.template_snapshot;
     const now = Date.now();
@@ -175,6 +187,7 @@ export class MockEngine {
       template_name: tpl.name,
       template_snapshot: structuredClone(tpl),
       status: 'pending',
+      generation_id: ulid(),
       error: null,
       result: null,
       edited: false,
@@ -183,6 +196,7 @@ export class MockEngine {
       _processing_at: now + this.opts.processingDelayMs,
       _ready_at: now + this.opts.completeDelayMs,
       _fail: false,
+      _timeout: false,
     });
     return this.publicNote(n);
   }
@@ -210,6 +224,7 @@ export class MockEngine {
       clinician,
       transcript,
       status: 'pending',
+      generation_id: ulid(),
       error: null,
       result: null,
       edited: false,
@@ -219,6 +234,7 @@ export class MockEngine {
       _processing_at: created + this.opts.processingDelayMs,
       _ready_at: created + this.opts.completeDelayMs,
       _fail: /\bfail me\b/i.test(transcript),
+      _timeout: /\btime me out\b/i.test(transcript),
     };
     this.notes.set(n.id, n);
     return n;
@@ -229,7 +245,10 @@ export class MockEngine {
     if (n.status === 'completed' || n.status === 'failed') return n;
     const now = Date.now();
     if (now >= n._ready_at) {
-      if (n._fail) {
+      if (n._timeout) {
+        n.status = 'failed';
+        n.error = { code: 'GENERATION_TIMEOUT', message: 'Generation did not finish in time.' };
+      } else if (n._fail) {
         n.status = 'failed';
         n.error = { code: 'LLM_ERROR', message: 'The model service is temporarily unavailable. Please try again.' };
       } else {
@@ -245,7 +264,7 @@ export class MockEngine {
   }
 
   private publicNote(n: StoredNote): Note {
-    const { _ready_at: _r, _processing_at: _p, _fail: _f, ...note } = n;
+    const { _ready_at: _r, _processing_at: _p, _fail: _f, _timeout: _t, ...note } = n;
     if (note.status === 'completed' && note.result) {
       note.rendered_text = renderText(note.result, note.template_snapshot);
       note.rendered_markdown = renderMarkdown(note.result, note.template_snapshot);

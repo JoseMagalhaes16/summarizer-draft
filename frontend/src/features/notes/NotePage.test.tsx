@@ -1,4 +1,5 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../test/server';
 import { makeNote, makeSection, makeTemplate, renderApp } from '../../test/utils';
@@ -20,7 +21,19 @@ const completed = (): Note =>
       sections: [
         { section_id: 'subjective', title: 'Subjective', format: 'paragraph', content: 'Head shaking.', items: [], fields: [], not_discussed: false, used_defaults: false },
         { section_id: 'plan', title: 'Plan', format: 'bullets', content: '', items: [], fields: [], not_discussed: true, used_defaults: false },
-        { section_id: 'objective', title: 'Objective', format: 'key_value', content: '', items: [], fields: [{ key: 'weight', label: 'Weight', value: '34 kg' }], not_discussed: false, used_defaults: true },
+        {
+          section_id: 'objective',
+          title: 'Objective',
+          format: 'key_value',
+          content: '',
+          items: [],
+          fields: [
+            { key: 'weight', label: 'Weight', value: '34 kg' },
+            { key: 'hr', label: 'Heart rate', value: '' },
+          ],
+          not_discussed: false,
+          used_defaults: true,
+        },
       ],
       action_items: ['Recheck in 14 days'],
       review_flags: ['Confirm carprofen dose'],
@@ -28,6 +41,9 @@ const completed = (): Note =>
     model_info: { provider: 'mock', model_id: 'mock-1', input_tokens: 1200, output_tokens: 300, latency_ms: 2500 },
     rendered_text: 'Subjective\nHead shaking.',
   });
+
+const noTemplates = http.get('*/v1/templates', () => HttpResponse.json({ items: [] }));
+const open = () => renderApp(<NotePage />, { route: '/notes/N1', path: '/notes/:id' });
 
 describe('NotePage polling', () => {
   it('polls while pending/processing and stops once completed', async () => {
@@ -39,9 +55,9 @@ describe('NotePage polling', () => {
         calls++;
         return HttpResponse.json(n);
       }),
-      http.get('*/v1/templates', () => HttpResponse.json({ items: [] })),
+      noTemplates,
     );
-    renderApp(<NotePage />, { route: '/notes/N1', path: '/notes/:id' });
+    open();
 
     expect(await screen.findByText('Queued…')).toBeInTheDocument();
     expect(await screen.findByText(/drafting your note/i, undefined, { timeout: 4000 })).toBeInTheDocument();
@@ -53,30 +69,124 @@ describe('NotePage polling', () => {
     expect(calls).toBe(3);
   }, 15000);
 
-  it('renders a completed note: flags, defaults badge, hidden empty sections, action items, footer', async () => {
-    server.use(http.get('*/v1/notes/N1', () => HttpResponse.json(completed())), http.get('*/v1/templates', () => HttpResponse.json({ items: [] })));
-    renderApp(<NotePage />, { route: '/notes/N1', path: '/notes/:id' });
+  it('announces progress as a busy status region', async () => {
+    server.use(http.get('*/v1/notes/N1', () => HttpResponse.json(makeNote({ status: 'processing' }))), noTemplates);
+    open();
+    await screen.findByText(/drafting your note/i);
+    const busy = screen.getAllByRole('status').find((el) => el.getAttribute('aria-busy') === 'true');
+    expect(busy).toBeDefined();
+    expect(busy).toHaveTextContent(/drafting your note/i);
+  });
+});
+
+describe('NotePage record sheet', () => {
+  it('renders the sheet with margin headings, no format badges, hidden empty sections and the sticky rail', async () => {
+    server.use(http.get('*/v1/notes/N1', () => HttpResponse.json(completed())), noTemplates);
+    const { container } = open();
 
     expect(await screen.findByText('Itchy ears for 3 weeks.')).toBeInTheDocument();
-    expect(screen.getByText('Needs vet review')).toBeInTheDocument();
-    expect(screen.getByText('Confirm carprofen dose')).toBeInTheDocument();
-    expect(screen.getByText('Normal defaults — confirm')).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Plan' })).not.toBeInTheDocument();
+    const sheet = screen.getByRole('article', { name: /note for bella/i });
+    expect(within(sheet).getByRole('heading', { name: 'Subjective' })).toBeInTheDocument();
+    expect(within(sheet).getByRole('heading', { name: 'Summary' })).toBeInTheDocument();
+    expect(within(sheet).queryByRole('heading', { name: 'Plan' })).not.toBeInTheDocument();
+    // no "Paragraph" / "Key value" / "Bullets" badges anywhere in the sheet
+    expect(sheet.querySelector('.badge')).toBeNull();
+    expect(sheet).not.toHaveTextContent(/paragraph|key.?value|bullets/i);
+    // no all-caps eyebrow labels
+    expect(container.querySelector('.eyebrow')).toBeNull();
+
     expect(screen.getByRole('button', { name: /show empty sections \(1\)/i })).toBeInTheDocument();
-    expect(screen.getByRole('checkbox', { name: 'Recheck in 14 days' })).toBeInTheDocument();
-    expect(screen.getByText(/Provider: mock/)).toBeInTheDocument();
-    expect(screen.getByText(/1,200 in \/ 300 out/)).toBeInTheDocument();
+    expect(screen.getByText(/mock · mock-1 · 1,200 in \/ 300 out tokens · 2.5 s/)).toBeInTheDocument();
   });
 
-  it('shows the error code and message when generation failed', async () => {
+  it('shows "not stated" for empty key_value values instead of hiding them', async () => {
+    server.use(http.get('*/v1/notes/N1', () => HttpResponse.json(completed())), noTemplates);
+    open();
+    const sheet = await screen.findByRole('article');
+    expect(within(sheet).getByText('Heart rate')).toBeInTheDocument();
+    expect(within(sheet).getByText('not stated')).toBeInTheDocument();
+    expect(within(sheet).getByText('34 kg')).toBeInTheDocument();
+  });
+
+  it('lists review flags, normal-defaults sections and follow-ups in the rail', async () => {
+    server.use(http.get('*/v1/notes/N1', () => HttpResponse.json(completed())), noTemplates);
+    open();
+    const rail = await screen.findByRole('complementary', { name: 'Review' });
+    expect(within(rail).getByRole('heading', { name: /check before filing \(2\)/i })).toBeInTheDocument();
+    expect(within(rail).getByText('Confirm carprofen dose')).toBeInTheDocument();
+    expect(within(rail).getByRole('link', { name: 'Objective' })).toHaveAttribute('href', '#entry-objective');
+    expect(within(rail).getByRole('heading', { name: 'Follow-ups' })).toBeInTheDocument();
+    expect(within(rail).getByRole('checkbox', { name: 'Recheck in 14 days' })).toBeInTheDocument();
+    // the defaults annotation also sits in the sheet margin
+    expect(within(screen.getByRole('article')).getByText('Normal defaults: confirm')).toBeInTheDocument();
+  });
+
+  it('copies the note and confirms with a matching toast', async () => {
+    server.use(http.get('*/v1/notes/N1', () => HttpResponse.json(completed())), noTemplates);
+    open();
+    const write = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: write }, configurable: true });
+    await userEvent.click(await screen.findByRole('button', { name: 'Copy note' }));
+    expect(write).toHaveBeenCalledWith('Subjective\nHead shaking.');
+    expect(await screen.findByText('Note copied')).toBeInTheDocument();
+  });
+
+  it('switches to editing with Save changes / Cancel', async () => {
+    server.use(http.get('*/v1/notes/N1', () => HttpResponse.json(completed())), noTemplates);
+    open();
+    await userEvent.click(await screen.findByRole('button', { name: /^edit$/i }));
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Summary' })).toHaveValue('Itchy ears for 3 weeks.');
+    expect(screen.getByRole('textbox', { name: 'Follow-up 1' })).toBeInTheDocument();
+  });
+});
+
+describe('NotePage while drafting', () => {
+  it.each(['pending', 'processing'] as const)('disables Regenerate and Edit while %s', async (status) => {
+    server.use(http.get('*/v1/notes/N1', () => HttpResponse.json(makeNote({ status }))), noTemplates);
+    open();
+    expect(await screen.findByRole('button', { name: /^regenerate$/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^edit$/i })).toBeDisabled();
+  });
+
+  it('shows the API message in a toast if regenerate is refused with 409', async () => {
+    server.use(
+      http.get('*/v1/notes/N1', () => HttpResponse.json(completed())),
+      noTemplates,
+      http.post('*/v1/notes/N1/regenerate', () =>
+        HttpResponse.json({ error: { code: 'GENERATION_IN_PROGRESS', message: 'Still drafting. Try again shortly.' } }, { status: 409 }),
+      ),
+    );
+    open();
+    await userEvent.click(await screen.findByRole('button', { name: 'More' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Regenerate' }));
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Regenerate' }));
+    expect(await screen.findByText('Still drafting. Try again shortly.')).toBeInTheDocument();
+  });
+});
+
+describe('NotePage failures', () => {
+  it('shows the error message and code when generation failed', async () => {
     server.use(
       http.get('*/v1/notes/N1', () => HttpResponse.json(makeNote({ status: 'failed', error: { code: 'MODEL_REFUSAL', message: 'The model declined.' } }))),
-      http.get('*/v1/templates', () => HttpResponse.json({ items: [] })),
+      noTemplates,
     );
-    renderApp(<NotePage />, { route: '/notes/N1', path: '/notes/:id' });
+    open();
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('MODEL_REFUSAL');
     expect(alert).toHaveTextContent('The model declined.');
-    expect(screen.getAllByRole('button', { name: /regenerate/i }).length).toBeGreaterThan(0);
+    expect(within(alert).getByRole('button', { name: /regenerate/i })).toBeInTheDocument();
+  });
+
+  it('renders the GENERATION_TIMEOUT state with a Regenerate button', async () => {
+    server.use(
+      http.get('*/v1/notes/N1', () => HttpResponse.json(makeNote({ status: 'failed', error: { code: 'GENERATION_TIMEOUT', message: 'internal detail' } }))),
+      noTemplates,
+    );
+    open();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent("Drafting didn't finish. Regenerate to try again.");
+    expect(alert).not.toHaveTextContent('internal detail');
+    expect(within(alert).getByRole('button', { name: 'Regenerate' })).toBeEnabled();
   });
 });

@@ -53,6 +53,7 @@ export function makeNote(p: Partial<Note> = {}): Note {
     clinician: '',
     transcript: 'Vet: hello',
     status: 'pending',
+    generation_id: null,
     error: null,
     result: null,
     edited: false,

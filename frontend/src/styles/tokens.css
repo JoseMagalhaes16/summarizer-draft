@@ -1,39 +1,45 @@
+@import '@fontsource/atkinson-hyperlegible-next/latin-400.css';
+@import '@fontsource/atkinson-hyperlegible-next/latin-600.css';
+@import '@fontsource/atkinson-hyperlegible-next/latin-700.css';
+@import '@fontsource/atkinson-hyperlegible-mono/latin-400.css';
+
 :root {
   color-scheme: light;
 
-  /* Colour: neutral surfaces, one teal accent */
-  --c-bg: #f5f7f8;
-  --c-surface: #ffffff;
-  --c-surface-2: #f0f3f4;
-  --c-border: #dde3e6;
-  --c-border-strong: #c3ccd1;
-  --c-text: #1a2428;
-  --c-text-muted: #52626a;
-  --c-text-faint: #6b7a82;
+  /* Colour: drape green on exam-table grey (see docs/design/ui-design.md) */
+  --c-bg: #eef2ef; /* exam table */
+  --c-surface: #ffffff; /* sheet, inputs */
+  --c-surface-2: #f4f7f5;
+  --c-border: #d5dcd8; /* rule */
+  --c-border-strong: #aab6b0;
+  --c-text: #1e2a28; /* ink */
+  --c-text-muted: #45544f;
+  --c-text-faint: #5b6a65;
 
-  --c-accent: #0f766e;
-  --c-accent-hover: #0b5f59;
-  --c-accent-soft: #e3f4f1;
-  --c-accent-text: #0b5f59;
+  --c-accent: #2f6b4f; /* drape green */
+  --c-accent-hover: #245640;
+  --c-accent-soft: #e0eee6;
+  --c-accent-text: #245640;
   --c-on-accent: #ffffff;
 
-  --c-warn-bg: #fff6e0;
-  --c-warn-border: #f0c969;
-  --c-warn-text: #7a4b00;
-  --c-danger: #b42318;
+  --c-warn-bg: #fcf1da; /* flag amber */
+  --c-warn-border: #e6c98a;
+  --c-warn-text: #8a5300;
+  --c-danger: #b42318; /* alert red */
   --c-danger-hover: #912018;
+  --c-on-danger: #ffffff;
   --c-danger-bg: #fdecea;
-  --c-danger-border: #f3b4ae;
-  --c-success-bg: #e3f4f1;
-  --c-success-text: #0b5f59;
-  --c-info-bg: #e8f0fe;
-  --c-info-text: #1d4ed8;
+  --c-danger-border: #f0b4ae;
+  --c-info-bg: #e6ece8;
+  --c-info-text: #33423d;
 
   --c-focus: #0b6bcb;
-  --c-skeleton: #e6ebed;
-  --c-skeleton-shine: #f3f6f7;
+  --c-skeleton: #e3e9e5;
+  --c-overlay: rgb(16 28 24 / 55%);
+  --c-toast-bg: #1e2a28;
+  --c-toast-text: #f2f6f4;
 
-  /* Spacing: 8px scale */
+  /* Spacing: 4/8px scale */
   --s-0: 2px;
   --s-1: 4px;
   --s-2: 8px;
@@ -44,64 +50,68 @@
   --s-7: 48px;
   --s-8: 64px;
 
+  /* Radius by hierarchy: sheet 10, controls 6, chips round */
   --radius-sm: 6px;
   --radius: 10px;
-  --radius-lg: 14px;
+  --radius-pill: 999px;
 
-  --shadow-1: 0 1px 2px rgb(16 36 44 / 6%), 0 1px 1px rgb(16 36 44 / 4%);
-  --shadow-2: 0 4px 12px rgb(16 36 44 / 8%), 0 1px 3px rgb(16 36 44 / 6%);
-  --shadow-3: 0 12px 32px rgb(16 36 44 / 18%);
+  /* Shadows are for overlays only (menus, dialogs, toasts) */
+  --shadow-menu: 0 6px 16px rgb(16 28 24 / 14%), 0 1px 3px rgb(16 28 24 / 10%);
+  --shadow-dialog: 0 16px 40px rgb(16 28 24 / 24%);
 
-  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --font-sans: 'Atkinson Hyperlegible Next', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --font-mono: 'Atkinson Hyperlegible Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
-  --fs-xs: 0.75rem;
-  --fs-sm: 0.8125rem;
-  --fs-md: 0.9375rem;
-  --fs-lg: 1.0625rem;
-  --fs-xl: 1.375rem;
-  --fs-2xl: 1.75rem;
+  /* Type scale: 1.2 ratio from 16px */
+  --fs-sm: 0.8333rem; /* 13.3 */
+  --fs-xs: var(--fs-sm);
+  --fs-md: 1rem; /* 16 */
+  --fs-lg: 1.2rem; /* 19.2 */
+  --fs-xl: 1.44rem; /* 23 */
+  --fs-2xl: 1.728rem; /* 27.6 */
+  --fs-3xl: 2.0736rem; /* 33 */
 
   --sidebar-w: 232px;
   --content-max: 1080px;
+  --measure: 68ch;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --c-bg: #0e1518;
-    --c-surface: #151e22;
-    --c-surface-2: #1b272c;
-    --c-border: #27363c;
-    --c-border-strong: #37494f;
-    --c-text: #e6edef;
-    --c-text-muted: #a3b3ba;
-    --c-text-faint: #8a9ba3;
+    --c-bg: #121816;
+    --c-surface: #1a211f;
+    --c-surface-2: #212a27;
+    --c-border: #2e3834;
+    --c-border-strong: #4a5852;
+    --c-text: #e6ece9;
+    --c-text-muted: #b2beb9;
+    --c-text-faint: #98a7a1;
 
-    --c-accent: #2dd4bf;
-    --c-accent-hover: #5eead4;
-    --c-accent-soft: #113a37;
-    --c-accent-text: #5eead4;
-    --c-on-accent: #04201d;
+    --c-accent: #7fc3a0;
+    --c-accent-hover: #9bd3b6;
+    --c-accent-soft: #1f3a2d;
+    --c-accent-text: #8fcfae;
+    --c-on-accent: #0d1f17;
 
-    --c-warn-bg: #3a2c0c;
-    --c-warn-border: #7a5c14;
-    --c-warn-text: #fbd98a;
-    --c-danger: #f87171;
-    --c-danger-hover: #fca5a5;
-    --c-danger-bg: #3a1613;
-    --c-danger-border: #7a2c26;
-    --c-success-bg: #113a37;
-    --c-success-text: #5eead4;
-    --c-info-bg: #162a52;
-    --c-info-text: #9db8ff;
+    --c-warn-bg: #2d2414;
+    --c-warn-border: #6b5424;
+    --c-warn-text: #f2c46d;
+    --c-danger: #f97066;
+    --c-danger-hover: #fda29b;
+    --c-on-danger: #2a0d0a;
+    --c-danger-bg: #3a1a17;
+    --c-danger-border: #7a2f29;
+    --c-info-bg: #252f2b;
+    --c-info-text: #c3cec9;
 
     --c-focus: #79b8ff;
-    --c-skeleton: #1f2c32;
-    --c-skeleton-shine: #2a3a41;
+    --c-skeleton: #28332f;
+    --c-overlay: rgb(0 0 0 / 62%);
+    --c-toast-bg: #e6ece9;
+    --c-toast-text: #1e2a28;
 
-    --shadow-1: 0 1px 2px rgb(0 0 0 / 40%);
-    --shadow-2: 0 4px 12px rgb(0 0 0 / 40%);
-    --shadow-3: 0 12px 32px rgb(0 0 0 / 60%);
+    --shadow-menu: 0 6px 16px rgb(0 0 0 / 50%);
+    --shadow-dialog: 0 16px 40px rgb(0 0 0 / 60%);
   }
 }

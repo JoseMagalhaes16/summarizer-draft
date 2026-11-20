@@ -31,21 +31,15 @@ export function TemplatePicker({
           <input id={`${name}-q`} type="search" placeholder="Search templates…" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
       )}
-      <div className="picker-grid" role="radiogroup" aria-label="Template">
+      <div className="picker-list" role="radiogroup" aria-label="Template">
         {shown.map((t) => (
-          <label key={t.id} className={`picker-card ${t.id === value ? 'selected' : ''}`}>
+          <label key={t.id} className={`picker-row ${t.id === value ? 'selected' : ''}`}>
             <input type="radio" name={name} value={t.id} checked={t.id === value} onChange={() => onChange(t.id)} />
             <span className="picker-title">{t.name}</span>
-            <span className="picker-meta">
-              <span className="badge">{humanise(t.appointment_type)}</span>
-              <span className="faint">
-                {t.species.length ? t.species.join(', ') : 'Any species'} · {t.sections.length} section{t.sections.length === 1 ? '' : 's'}
-              </span>
-            </span>
-            {t.description && <span className="picker-desc">{t.description}</span>}
+            <span className="picker-desc">{t.description || `${humanise(t.appointment_type)} visit`}</span>
           </label>
         ))}
-        {shown.length === 0 && <p className="muted">No templates match “{q}”.</p>}
+        {shown.length === 0 && <p className="muted">No templates match “{q}”. Clear the search to see them all.</p>}
       </div>
     </div>
   );

@@ -21,7 +21,7 @@ export function TemplatesPage() {
       { id: t.id },
       {
         onSuccess: (copy) => {
-          toast.show(`Created “${copy.name}”`);
+          toast.show('Template duplicated');
           void navigate(`/templates/${copy.id}`);
         },
         onError: (e) => toast.show(e.message, 'error'),
@@ -33,7 +33,7 @@ export function TemplatesPage() {
     <div className="page">
       <PageHead
         title="Templates"
-        subtitle="Templates define the sections and style of each generated note. Built-in templates are read-only — duplicate one to customise it."
+        subtitle="Templates set the sections and style of each note. Built-in templates are read-only. Duplicate one to make your own."
         actions={
           <Link to="/templates/new" className="btn btn-primary">
             <Icon name="plus" size={16} /> New template
@@ -43,7 +43,9 @@ export function TemplatesPage() {
       {templates.isLoading && <LoadingBlock label="Loading templates…" />}
       {templates.isError && <ErrorState error={templates.error} onRetry={() => void templates.refetch()} title="Couldn’t load templates" />}
       {templates.data && templates.data.length === 0 && (
-        <EmptyState icon="template" title="No templates" action={<Link to="/templates/new" className="btn btn-primary">Create a template</Link>} />
+        <EmptyState icon="template" title="No templates yet" action={<Link to="/templates/new" className="btn btn-primary">Create a template</Link>}>
+          Create a template to choose the sections of your notes.
+        </EmptyState>
       )}
       {templates.data && (
         <ul className="tpl-grid">
@@ -58,15 +60,15 @@ export function TemplatesPage() {
                     </span>
                   )}
                 </div>
-                <p className="muted tpl-desc">{t.description || 'No description.'}</p>
-                <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
-                  <span className="badge">{humanise(t.appointment_type)}</span>
-                  <span className="badge">{t.species.length ? t.species.join(', ') : 'Any species'}</span>
-                  <span className="badge">
-                    {t.sections.length} section{t.sections.length === 1 ? '' : 's'}
-                  </span>
-                  <span className="badge">{t.style.tone === 'clinical' ? 'Clinical' : 'Client-friendly'}</span>
-                </div>
+                <p className="muted tpl-desc">{t.description || 'No description yet.'}</p>
+                <p className="muted small">
+                  {[
+                    humanise(t.appointment_type),
+                    t.species.length ? t.species.map(humanise).join(', ') : 'Any species',
+                    `${t.sections.length} section${t.sections.length === 1 ? '' : 's'}`,
+                    t.style.tone === 'clinical' ? 'Clinical tone' : 'Client-friendly tone',
+                  ].join(' · ')}
+                </p>
               </div>
               <div className="tpl-actions">
                 <button type="button" className="btn btn-sm" onClick={() => onDuplicate(t)} disabled={duplicate.isPending} aria-label={`Duplicate ${t.name}`}>
@@ -97,7 +99,7 @@ export function TemplatesPage() {
           if (!toDelete) return;
           del.mutate(toDelete.id, {
             onSuccess: () => {
-              toast.show(`Deleted “${toDelete.name}”`);
+              toast.show('Template deleted');
               setToDelete(null);
             },
             onError: (e) => {
