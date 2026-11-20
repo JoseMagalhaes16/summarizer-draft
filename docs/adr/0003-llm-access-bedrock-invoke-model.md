@@ -8,7 +8,7 @@
 
 Note generation calls a Claude model with a clinical transcript. Veterinary transcripts contain identifiable client and patient information, so where the data is processed and under what contract matters as much as model quality. The backend is AWS-native and the team wants access controlled by IAM and billed through the existing AWS account.
 
-Several routes to Claude exist: the first-party API, the Anthropic SDK's Bedrock clients, and the vendor-neutral Bedrock Converse API. The chosen route must support Anthropic-specific structured output and effort controls ([ADR-0004](0004-structured-output-json-schema.md)).
+Several routes to Claude exist: the first-party API, the Anthropic SDK's Bedrock clients, and the vendor-neutral Bedrock Converse API. The chosen route must support structured output and Anthropic's effort control ([ADR-0004](0004-structured-output-json-schema.md)).
 
 ## Decision Drivers
 
@@ -42,7 +42,21 @@ Use the `anthropic` SDK's Bedrock client classes to call Claude on Bedrock.
 Use boto3 `converse`, which gives one request shape across model vendors.
 
 * Good, because the request format is portable across providers.
-* Bad, because it lags Anthropic-specific features such as structured outputs (`output_config`) and effort, which the design relies on.
+* Good, because it supports structured output natively through
+  `outputConfig.textFormat` (`type: "json_schema"`, with the schema, name and
+  description under `structure.jsonSchema`).
+* Bad, because the request is Bedrock's vendor-neutral shape rather than
+  Anthropic's documented Messages body. Anthropic-only options that Converse
+  does not model directly would have to go through
+  `additionalModelRequestFields`. Effort is one candidate, but this has not
+  been verified.
+
+> **Correction (2026-11-20).** An earlier version of this ADR said Converse
+> lacked structured outputs. That was wrong: Converse supports them natively via
+> `outputConfig.textFormat`. The choice of Option D does not depend on that
+> claim. It rests on sending Anthropic's own request body, which keeps the code
+> aligned one-to-one with Anthropic's documentation. Converse remains a valid
+> alternative, and switching would only change `llm/bedrock.py`.
 
 ### Option D: Bedrock Runtime `invoke_model` with the Anthropic Messages body (chosen)
 

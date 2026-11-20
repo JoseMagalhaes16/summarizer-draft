@@ -40,9 +40,14 @@ export function BedrockPage() {
         }
       >
         <p>
-          The body carries <code>anthropic_version: &quot;bedrock-2023-05-31&quot;</code>. Converse normalises requests across model vendors, so Anthropic-specific fields such
-          as <code>output_config</code> (structured output and effort) would have to be tunnelled through <code>additionalModelRequestFields</code>. InvokeModel lets us
-          send the native body directly. Converse would be the better choice if switching vendors were a goal.
+          The body carries <code>anthropic_version: &quot;bedrock-2023-05-31&quot;</code>, which is Anthropic&rsquo;s own request format, so the code maps one-to-one to
+          Anthropic&rsquo;s documentation, including <code>output_config</code> (structured output and effort).
+        </p>
+        <p>
+          Converse would also work. It supports structured output natively through <code>outputConfig.textFormat</code> with a <code>json_schema</code>, and gives one
+          request shape across Bedrock model vendors. The trade-off is that its request is Bedrock&rsquo;s vendor-neutral format, so Anthropic-only options it doesn&rsquo;t
+          model directly would go through <code>additionalModelRequestFields</code>. Choosing InvokeModel is a preference, not a requirement. Switching would only change{' '}
+          <code>backend/src/vetscribe/llm/bedrock.py</code>.
         </p>
         <p>
           It is also not the Anthropic API: requests go to Bedrock and stay inside your AWS account (ADR-0003).

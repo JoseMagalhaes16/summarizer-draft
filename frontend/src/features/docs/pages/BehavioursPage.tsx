@@ -73,6 +73,35 @@ export function BehavioursPage() {
       </Question>
 
       <Question
+        id="q-content"
+        title="Doesn't structured output make sure the content is correct?"
+        answer="No. It guarantees the shape of the answer, not whether the values are true. Constrained decoding makes sure the JSON parses, every required key is there, nothing extra is added and each value has the right type. It cannot check a value against the transcript."
+      >
+        <p>Examples that are perfectly valid against the schema but wrong for the patient:</p>
+        <ul className="doc-list">
+          <li>
+            <strong>A wrong value.</strong> The transcript says 34.2 kg, but <code>&quot;weight&quot;: &quot;35 kg&quot;</code> is still a valid string.
+          </li>
+          <li>
+            <strong>An invented fact.</strong> A drug that was never mentioned is still a valid string inside <code>items</code>.
+          </li>
+          <li>
+            <strong>Contradictory flags.</strong> <code>&quot;not_discussed&quot;: false</code> with invented content, or normal defaults used with{' '}
+            <code>&quot;used_defaults&quot;: false</code>, both pass. The schema cannot express rules between fields (&ldquo;if not discussed, content is empty&rdquo;),
+            because structured output doesn&rsquo;t support conditional schemas, string patterns or lengths, so it can&rsquo;t even force a unit such as &ldquo;kg&rdquo;.
+          </li>
+          <li>
+            <strong>A refusal or a cut-off answer.</strong> Even the shape guarantee doesn&rsquo;t hold if the model refuses or hits its output limit, which is why the
+            code checks <code>stop_reason</code> before reading the answer.
+          </li>
+        </ul>
+        <p>
+          That is why content is handled by the prompt (instructed), the post-processor (deterministic fixes and flags) and the Evaluations, which measure field accuracy,
+          invented facts and whether defaults are flagged.
+        </p>
+      </Question>
+
+      <Question
         id="q-table"
         title="What happens in each edge case?"
         answer="The table is the short version. Each row has a section below it."
