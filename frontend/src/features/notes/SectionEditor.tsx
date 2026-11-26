@@ -1,12 +1,7 @@
 import { useId } from 'react';
 import type { ResultSection } from '../../api/types';
 import { Icon } from '../../components/Icon';
-
-export function sectionHasContent(s: ResultSection): boolean {
-  if (s.format === 'paragraph') return s.content.trim() !== '';
-  if (s.format === 'bullets') return s.items.some((i) => i.trim() !== '');
-  return s.fields.some((f) => f.value.trim() !== '');
-}
+import { sectionHasContent } from '../../lib/finalizeResult';
 
 /** Inline editor for one section; emits a new section object on every change. */
 export function SectionEditor({ section, onChange }: { section: ResultSection; onChange: (s: ResultSection) => void }) {

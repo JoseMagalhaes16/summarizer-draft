@@ -231,3 +231,127 @@ describe('Draft another note', () => {
     expect(screen.getByRole('button', { name: 'Draft another note' })).toBeDisabled();
   });
 });
+
+describe('Manual notes', () => {
+  const manualNote = (p: Partial<Note> = {}): Note => {
+    const base = completed();
+    return {
+      ...base,
+      source: 'manual',
+      transcript: '',
+      model_info: null,
+      result: { ...base.result!, review_flags: [], sections: base.result!.sections.map((s) => ({ ...s, used_defaults: false })) },
+      ...p,
+    };
+  };
+  const withTemplates = http.get('*/v1/templates', () => HttpResponse.json({ items: [makeTemplate(), makeTemplate({ id: 'builtin-dental', name: 'Dental (COHAT)' })] }));
+  const user = () => userEvent.setup();
+
+  it('says it was written manually, has no Regenerate or model line, and hides an empty check rail', async () => {
+    server.use(http.get('*/v1/notes/N1', () => HttpResponse.json(manualNote())), withTemplates);
+    open();
+    expect(await screen.findByText('Written manually')).toBeInTheDocument();
+    expect(screen.queryByText(/mock-1/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /check before filing/i })).not.toBeInTheDocument();
+    await user().click(screen.getByRole('button', { name: 'More' }));
+    expect(screen.queryByRole('button', { name: 'Regenerate' })).not.toBeInTheDocument();
+    // No transcript, so no AI draft to make; but a manual note can always be started.
+    expect(screen.queryByRole('button', { name: 'Draft another note' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start another note manually' })).toBeInTheDocument();
+  });
+
+  it('offers Draft another note for a manual note with a reference transcript', async () => {
+    server.use(http.get('*/v1/notes/N1', () => HttpResponse.json(manualNote({ transcript: 'Vet: hi' }))), withTemplates);
+    open();
+    await userEvent.click(await screen.findByRole('button', { name: 'More' }));
+    expect(screen.getByRole('button', { name: 'Draft another note' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Regenerate' })).not.toBeInTheDocument();
+  });
+
+  it('opens straight in edit mode with ?edit=1, and saves sections with the right flags', async () => {
+    const base = manualNote();
+    const blank = {
+      ...base,
+      result: {
+        ...base.result!,
+        visit_summary: '',
+        action_items: [],
+        sections: base.result!.sections.map((s) => ({ ...s, content: '', items: [], fields: s.fields.map((f) => ({ ...f, value: '' })), not_discussed: true })),
+      },
+    };
+    let patched: { result: Note['result'] } | undefined;
+    server.use(
+      http.get('*/v1/notes/N1', () => HttpResponse.json(blank)),
+      withTemplates,
+      http.patch('*/v1/notes/N1', async ({ request }) => {
+        patched = (await request.json()) as { result: Note['result'] };
+        return HttpResponse.json({ ...blank, edited: true, result: patched.result });
+      }),
+    );
+    renderApp(<NotePage />, { route: '/notes/N1?edit=1', path: '/notes/:id' });
+    expect(await screen.findByRole('button', { name: 'Save changes' })).toBeInTheDocument();
+    await userEvent.type(screen.getByRole('textbox', { name: 'Summary' }), 'Limp');
+    await userEvent.type(screen.getByRole('textbox', { name: 'Subjective' }), 'Right hind');
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(await screen.findByText('Changes saved')).toBeInTheDocument();
+    expect(patched!.result!.visit_summary).toBe('Limp');
+    const [subj, plan, obj] = patched!.result!.sections;
+    expect(subj).toMatchObject({ content: 'Right hind', not_discussed: false });
+    expect(plan.not_discussed).toBe(true);
+    expect(obj.not_discussed).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Save changes' })).not.toBeInTheDocument();
+  });
+
+  it('shows the server message if regenerate is refused with MANUAL_NOTE', async () => {
+    // An AI note that the server says is manual (stale client).
+    server.use(
+      http.get('*/v1/notes/N1', () => HttpResponse.json(completed())),
+      withTemplates,
+      http.post('*/v1/notes/N1/regenerate', () => HttpResponse.json({ error: { code: 'MANUAL_NOTE', message: 'Written by hand. Nothing to regenerate.' } }, { status: 409 })),
+    );
+    open();
+    await userEvent.click(await screen.findByRole('button', { name: 'More' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Regenerate' }));
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Regenerate' }));
+    expect(await screen.findByText('Written by hand. Nothing to regenerate.')).toBeInTheDocument();
+  });
+
+  it('starts another note manually for the same patient', async () => {
+    let posted: unknown;
+    const n9 = { ...completed(), id: 'N9', source: 'manual' as const };
+    server.use(
+      http.get('*/v1/notes/N1', () => HttpResponse.json(completed())),
+      withTemplates,
+      http.post('*/v1/notes/manual', async ({ request }) => {
+        posted = await request.json();
+        return HttpResponse.json(n9, { status: 201 });
+      }),
+      http.get('*/v1/notes/N9', () => HttpResponse.json(n9)),
+    );
+    open();
+    await userEvent.click(await screen.findByRole('button', { name: 'More' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Start another note manually' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(await within(dialog).findByRole('radio', { name: /Dental/ }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create note' }));
+    // Lands on the new note, already in edit mode.
+    expect(await screen.findByRole('button', { name: 'Save changes' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Bella');
+    expect(posted).toEqual({ template_id: 'builtin-dental', patient: { name: 'Bella', species: 'canine' } });
+  });
+});
+
+describe('NotePage with AI switched off', () => {
+  it('hides Regenerate and Draft another note', async () => {
+    server.use(
+      http.get('*/v1/health', () => HttpResponse.json({ status: 'ok', llm_provider: 'none', storage: 'memory', ai_enabled: false })),
+      http.get('*/v1/notes/N1', () => HttpResponse.json(completed())),
+      noTemplates,
+    );
+    open();
+    await userEvent.click(await screen.findByRole('button', { name: 'More' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Draft another note' })).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Regenerate' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start another note manually' })).toBeInTheDocument();
+  });
+});

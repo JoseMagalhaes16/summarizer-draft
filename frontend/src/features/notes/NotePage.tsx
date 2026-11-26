@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
-import { isActive, useDeleteNote, useNote, useRegenerateNote, useTemplates, useUpdateNote } from '../../api/hooks';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
+import { isActive, useAiEnabled, useDeleteNote, useNote, useRegenerateNote, useTemplates, useUpdateNote } from '../../api/hooks';
 import { ApiError } from '../../api/client';
 import type { Note, NoteResult } from '../../api/types';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -11,8 +11,10 @@ import { RecordSheet, SheetEntry } from '../../components/RecordSheet';
 import { Callout, EmptyState, ErrorState, LoadingBlock, Skeleton, StatusBadge } from '../../components/ui';
 import { errorMessage } from '../../lib/errors';
 import { formatDateTime, formatNumber, patientLabel } from '../../lib/format';
+import { finalizeResult } from '../../lib/finalizeResult';
 import { fullNoteText, isOmitted, missingBehaviors, renderSectionText } from '../../lib/renderNote';
 import { DraftAnotherDialog } from './DraftAnotherDialog';
+import { StartManualDialog } from './StartManualDialog';
 import { SectionBody } from './SectionView';
 import { SectionEditor } from './SectionEditor';
 import { useElapsedSeconds } from './useElapsed';
@@ -65,8 +67,13 @@ function NoteView({ note }: { note: Note }) {
   const regenerate = useRegenerateNote(note.id);
   const del = useDeleteNote();
 
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<NoteResult | null>(null);
+  const aiEnabled = useAiEnabled();
+  const [params, setParams] = useSearchParams();
+  // ?edit=1 opens a finished note straight in edit mode (used right after "Create note").
+  const openInEdit = params.get('edit') === '1' && note.status === 'completed' && !!note.result;
+  const [editing, setEditing] = useState(openInEdit);
+  const [draft, setDraft] = useState<NoteResult | null>(() => (openInEdit && note.result ? structuredClone(note.result) : null));
+  const [manualOpen, setManualOpen] = useState(false);
   const [showEmpty, setShowEmpty] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [regenOpen, setRegenOpen] = useState(false);
@@ -85,21 +92,23 @@ function NoteView({ note }: { note: Note }) {
     setDraft(structuredClone(note.result));
     setEditing(true);
   }
-  function cancelEdit() {
+  function leaveEdit() {
     setEditing(false);
     setDraft(null);
+    if (params.has('edit')) {
+      const next = new URLSearchParams(params);
+      next.delete('edit');
+      setParams(next, { replace: true });
+    }
+  }
+  function cancelEdit() {
+    leaveEdit();
   }
   function saveEdit() {
-    if (!draft) return;
-    const cleaned: NoteResult = {
-      ...draft,
-      action_items: draft.action_items.filter((a) => a.trim()),
-      sections: draft.sections.map((sec) => ({ ...sec, items: sec.items.filter((i) => i.trim()) })),
-    };
-    update.mutate(cleaned, {
+    if (!draft || !note.result) return;
+    update.mutate(finalizeResult(note.result, draft), {
       onSuccess: () => {
-        setEditing(false);
-        setDraft(null);
+        leaveEdit();
         toast.show('Changes saved');
       },
       onError: (e) => toast.show(errorMessage(e, 'Couldn’t save your changes. Try again.'), 'error'),
@@ -144,7 +153,10 @@ function NoteView({ note }: { note: Note }) {
   const failed = note.status === 'failed';
   const hiddenCount = result && !editing ? result.sections.filter((s) => isOmitted(s, behaviors)).length : 0;
   const details = [note.patient.species, note.patient.breed, note.patient.age, note.patient.sex, note.patient.weight].filter(Boolean).join(' · ');
-  const metaLine = [note.template_name, `Drafted ${formatDateTime(note.created_at)}`, note.clinician].filter(Boolean).join(' · ');
+  const manual = note.source === 'manual';
+  const canRegenerate = !manual && aiEnabled;
+  const canDraftAnother = aiEnabled && note.transcript.trim() !== '';
+  const metaLine = [note.template_name, `${manual ? 'Created' : 'Drafted'} ${formatDateTime(note.created_at)}`, note.clinician].filter(Boolean).join(' · ');
 
   return (
     <div className="page page-note">
@@ -155,10 +167,14 @@ function NoteView({ note }: { note: Note }) {
       <header className="note-head">
         <div className="note-head-main">
           <h1>{patientLabel(note.patient)}</h1>
-          <p className="muted">{details || 'No patient details'}</p>
+          {details ? (
+            <p className="muted">{details}</p>
+          ) : note.patient.name?.trim() ? null : (
+            <p className="muted">No patient details</p>
+          )}
           <p className="note-meta">
             <span>{metaLine}</span>
-            <StatusBadge status={note.status} />
+            {manual ? <span className="badge badge-info">Written manually</span> : <StatusBadge status={note.status} />}
             {note.edited && <span className="badge">Edited</span>}
           </p>
         </div>
@@ -184,7 +200,7 @@ function NoteView({ note }: { note: Note }) {
                   <Icon name="edit" size={16} /> Edit
                 </button>
               )}
-              {active && (
+              {active && canRegenerate && (
                 <button type="button" className="btn" disabled>
                   <Icon name="refresh" size={16} /> Regenerate
                 </button>
@@ -192,17 +208,29 @@ function NoteView({ note }: { note: Note }) {
               <Menu label="More" align="right" buttonClassName="btn">
                 {(close) => (
                   <>
+                    {canDraftAnother && (
+                      <button
+                        type="button"
+                        disabled={active}
+                        onClick={() => {
+                          close();
+                          setDraftOpen(true);
+                        }}
+                      >
+                        Draft another note
+                      </button>
+                    )}
                     <button
                       type="button"
                       disabled={active}
                       onClick={() => {
                         close();
-                        setDraftOpen(true);
+                        setManualOpen(true);
                       }}
                     >
-                      Draft another note
+                      Start another note manually
                     </button>
-                    {!active && (
+                    {!active && canRegenerate && (
                       <button
                         type="button"
                         onClick={() => {
@@ -237,9 +265,11 @@ function NoteView({ note }: { note: Note }) {
           role="alert"
           title={note.error?.code === 'GENERATION_TIMEOUT' ? TIMEOUT_COPY : 'Drafting failed'}
           actions={
-            <button type="button" className="btn btn-sm" onClick={openRegenerate}>
-              <Icon name="refresh" size={14} /> Regenerate
-            </button>
+            canRegenerate && (
+              <button type="button" className="btn btn-sm" onClick={openRegenerate}>
+                <Icon name="refresh" size={14} /> Regenerate
+              </button>
+            )
           }
         >
           {note.error?.code !== 'GENERATION_TIMEOUT' && (
@@ -255,7 +285,7 @@ function NoteView({ note }: { note: Note }) {
 
       {completed && result && (
         <div className={`note-layout${sawActive ? ' fade-in' : ''}`}>
-          <Rail result={result} editing={editing} onActionItems={(action_items) => setDraft({ ...result, action_items })} />
+          <Rail result={result} editing={editing} hideEmptyCheck={manual} onActionItems={(action_items) => setDraft({ ...result, action_items })} />
           <div className="note-main">
             <RecordSheet label={`Note for ${patientLabel(note.patient)}`}>
               <SheetEntry title="Summary" lead>
@@ -279,7 +309,7 @@ function NoteView({ note }: { note: Note }) {
                     id={`entry-${s.section_id}`}
                     title={s.title}
                     flag={s.used_defaults ? 'Normal defaults: confirm' : undefined}
-                    muted={omitted || s.not_discussed}
+                    muted={!editing && (omitted || s.not_discussed)}
                     onCopy={!editing && !s.not_discussed ? () => void copy(renderSectionText(s, behaviors), s.title) : undefined}
                   >
                     {editing ? (
@@ -297,13 +327,13 @@ function NoteView({ note }: { note: Note }) {
                 {showEmpty ? 'Hide empty sections' : `Show empty sections (${hiddenCount})`}
               </button>
             )}
-            <TranscriptBox transcript={note.transcript} />
+            <TranscriptBox transcript={note.transcript} manual={manual} />
             <ModelLine note={note} />
           </div>
         </div>
       )}
 
-      {!completed && !active && <TranscriptBox transcript={note.transcript} />}
+      {!completed && !active && <TranscriptBox transcript={note.transcript} manual={manual} />}
 
       <ConfirmDialog
         open={confirmDelete}
@@ -320,6 +350,7 @@ function NoteView({ note }: { note: Note }) {
       </ConfirmDialog>
 
       <DraftAnotherDialog note={note} open={draftOpen} onClose={() => setDraftOpen(false)} />
+      <StartManualDialog note={note} open={manualOpen} onClose={() => setManualOpen(false)} />
 
       <ConfirmDialog open={regenOpen} title="Regenerate note" confirmLabel="Regenerate" busy={regenerate.isPending} onConfirm={doRegenerate} onCancel={() => setRegenOpen(false)}>
         <p className="muted">
@@ -342,10 +373,11 @@ function NoteView({ note }: { note: Note }) {
   );
 }
 
-function TranscriptBox({ transcript }: { transcript: string }) {
+function TranscriptBox({ transcript, manual }: { transcript: string; manual: boolean }) {
+  if (manual && !transcript.trim()) return null;
   return (
     <details className="collapse transcript-box">
-      <summary>Original transcript</summary>
+      <summary>{manual ? 'Reference transcript' : 'Original transcript'}</summary>
       <pre className="transcript-pre">{transcript}</pre>
     </details>
   );
@@ -362,11 +394,12 @@ function ModelLine({ note }: { note: Note }) {
 }
 
 /** Sticky right rail: what to check before filing, and follow-ups. */
-function Rail({ result, editing, onActionItems }: { result: NoteResult; editing: boolean; onActionItems: (items: string[]) => void }) {
+function Rail({ result, editing, hideEmptyCheck, onActionItems }: { result: NoteResult; editing: boolean; hideEmptyCheck: boolean; onActionItems: (items: string[]) => void }) {
   const defaults = result.sections.filter((s) => s.used_defaults && !s.not_discussed);
   const count = result.review_flags.length + defaults.length;
   return (
     <aside className="note-rail" aria-label="Review">
+      {(count > 0 || !hideEmptyCheck) && (
       <section className="rail-block" aria-labelledby="rail-check">
         <h2 id="rail-check">
           Check before filing <span className="count">({count})</span>
@@ -386,6 +419,7 @@ function Rail({ result, editing, onActionItems }: { result: NoteResult; editing:
           <p className="muted">Nothing flagged.</p>
         )}
       </section>
+      )}
       <section className="rail-block" aria-labelledby="rail-follow">
         <h2 id="rail-follow">Follow-ups</h2>
         {editing ? (

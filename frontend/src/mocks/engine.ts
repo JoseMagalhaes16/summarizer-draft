@@ -50,6 +50,8 @@ export interface MockOptions {
   /** ms until a note is completed */
   completeDelayMs?: number;
   seedNotes?: boolean;
+  /** Demo switch: behave like LLM_PROVIDER=none (AI drafting switched off). */
+  aiOff?: boolean;
 }
 
 export class MockEngine {
@@ -58,7 +60,7 @@ export class MockEngine {
   readonly opts: Required<MockOptions>;
 
   constructor(opts: MockOptions = {}) {
-    this.opts = { processingDelayMs: 900, completeDelayMs: 3200, seedNotes: true, ...opts };
+    this.opts = { processingDelayMs: 900, completeDelayMs: 3200, seedNotes: true, aiOff: false, ...opts };
     this.reset();
   }
 
@@ -70,7 +72,7 @@ export class MockEngine {
 
   // ------------------------------------------------------------- templates
   health() {
-    return { status: 'ok', llm_provider: 'mock', storage: 'memory' };
+    return { status: 'ok', llm_provider: this.opts.aiOff ? 'none' : 'mock', storage: 'memory', ai_enabled: !this.opts.aiOff };
   }
 
   listTemplates(): { items: Template[] } {
@@ -119,7 +121,55 @@ export class MockEngine {
   }
 
   // ----------------------------------------------------------------- notes
+  private requireAi() {
+    if (this.opts.aiOff) throw new MockApiError(409, 'AI_DISABLED', 'AI drafting is switched off in this environment. Write the note manually.');
+  }
+
+  createManualNote(body: unknown): Note {
+    const b = (body ?? {}) as { template_id?: string; transcript?: string; patient?: Patient; clinician?: string; result?: NoteResult; prefill_defaults?: boolean };
+    const details: { field: string; message: string }[] = [];
+    if (typeof b.transcript === 'string' && new TextEncoder().encode(b.transcript).length > MAX_TRANSCRIPT_BYTES) {
+      throw new MockApiError(413, 'PAYLOAD_TOO_LARGE', `Transcript is too large. The limit is ${MAX_TRANSCRIPT_CHARS.toLocaleString('en-US')} characters (${MAX_TRANSCRIPT_BYTES.toLocaleString('en-US')} bytes).`);
+    }
+    if (!b.template_id) details.push({ field: 'template_id', message: 'Required' });
+    if (b.transcript !== undefined && typeof b.transcript !== 'string') details.push({ field: 'transcript', message: 'Must be text' });
+    else if ((b.transcript ?? '').length > MAX_TRANSCRIPT_CHARS) details.push({ field: 'transcript', message: `Transcript exceeds ${MAX_TRANSCRIPT_CHARS} characters` });
+    if (details.length) throw new MockApiError(400, 'VALIDATION_ERROR', 'Invalid request body', details);
+    const tpl = this.getTemplate(b.template_id as string);
+    if (b.result) {
+      const bad = checkResultShape(tpl, b.result);
+      if (bad.length) throw new MockApiError(400, 'VALIDATION_ERROR', 'Invalid result', bad);
+    }
+    const result = b.result ?? blankResult(tpl, b.prefill_defaults === true);
+    const now = iso();
+    const n: StoredNote = {
+      id: ulid(),
+      template_id: tpl.id,
+      template_name: tpl.name,
+      template_snapshot: structuredClone(tpl),
+      patient: b.patient ?? {},
+      clinician: b.clinician ?? '',
+      transcript: b.transcript ?? '',
+      status: 'completed',
+      generation_id: ulid(),
+      error: null,
+      result: structuredClone(result),
+      source: 'manual',
+      edited: false,
+      model_info: null,
+      created_at: now,
+      updated_at: now,
+      _processing_at: 0,
+      _ready_at: 0,
+      _fail: false,
+      _timeout: false,
+    };
+    this.notes.set(n.id, n);
+    return this.publicNote(n);
+  }
+
   createNote(body: unknown): Note {
+    this.requireAi();
     const b = (body ?? {}) as { template_id?: string; transcript?: string; patient?: Patient; clinician?: string };
     const details: unknown[] = [];
     if (typeof b.transcript === 'string' && new TextEncoder().encode(b.transcript).length > MAX_TRANSCRIPT_BYTES) {
@@ -145,6 +195,7 @@ export class MockEngine {
           template_name: n.template_name,
           patient: n.patient,
           status: n.status,
+          source: n.source,
           visit_summary: n.result?.visit_summary ?? null,
           created_at: n.created_at,
           updated_at: n.updated_at,
@@ -175,7 +226,9 @@ export class MockEngine {
   }
 
   regenerateNote(id: string, body: unknown): Note {
+    this.requireAi();
     const n = this.refresh(this.mustNote(id));
+    if (n.source === 'manual') throw new MockApiError(409, 'MANUAL_NOTE', 'This note was written manually, so there is nothing to regenerate. Draft another note from a transcript instead.');
     if (n.status === 'pending' || n.status === 'processing') {
       throw new MockApiError(409, 'GENERATION_IN_PROGRESS', 'This note is still being drafted. Wait for it to finish, then regenerate.');
     }
@@ -227,6 +280,7 @@ export class MockEngine {
       generation_id: ulid(),
       error: null,
       result: null,
+      source: 'ai',
       edited: false,
       model_info: null,
       created_at: now,
@@ -300,10 +354,76 @@ export class MockEngine {
     pending._processing_at = pending._ready_at = 0;
     this.refresh(pending);
     if (pending.result) pending.result.visit_summary = '9-year-old Schnauzer with stage 3 periodontal disease; COHAT with probable extractions planned for next Tuesday.';
+    const manual = this.createManualNote({
+      template_id: 'builtin-soap',
+      patient: { name: 'Juniper', species: 'canine', breed: 'Border Collie', age: '3 years', sex: 'Female, spayed' },
+      clinician: 'Dr. Patel',
+    });
+    const mn = this.notes.get(manual.id)!;
+    mn.created_at = new Date(Date.now() - 5 * hour).toISOString();
+    mn.updated_at = mn.created_at;
+    if (mn.result) {
+      mn.result.visit_summary = 'Border Collie seen for a limp on the right hind leg, written up by hand.';
+      const first = mn.result.sections.find((x) => x.format === 'paragraph');
+      if (first) {
+        first.content = 'Owner reports a mild limp on the right hind leg since a long walk on Sunday.';
+        first.not_discussed = false;
+      }
+      mn.result.action_items = ['Rest for five days, then recheck'];
+      mn.edited = true;
+    }
     const failed = this.startNote(this.templates.get('builtin-soap')!, 'fail me', { name: 'Rex', species: 'canine' }, '', Date.now() - 4 * 24 * hour);
     failed._processing_at = failed._ready_at = 0;
     this.refresh(failed);
   }
+}
+
+// ------------------------------------------------------------ manual notes
+
+/** Every section empty and not discussed; optionally pre-filled with the template's normal defaults. */
+export function blankResult(tpl: Template, prefillDefaults: boolean): NoteResult {
+  return {
+    visit_summary: '',
+    action_items: [],
+    review_flags: [],
+    sections: tpl.sections.map((s) => {
+      const base: ResultSection = {
+        section_id: s.id,
+        title: s.title,
+        format: s.format,
+        content: '',
+        items: [],
+        fields: s.format === 'key_value' ? s.fields.map((f) => ({ key: f.key, label: f.label, value: '' })) : [],
+        not_discussed: true,
+        used_defaults: false,
+      };
+      if (prefillDefaults && s.missing_behavior === 'use_normal_defaults' && s.normal_defaults.trim() && s.format !== 'key_value') {
+        if (s.format === 'paragraph') base.content = s.normal_defaults;
+        else base.items = [s.normal_defaults];
+        base.not_discussed = false;
+        base.used_defaults = true;
+      }
+      return base;
+    }),
+  };
+}
+
+function checkResultShape(tpl: Template, r: NoteResult): { field: string; message: string }[] {
+  const out: { field: string; message: string }[] = [];
+  if (typeof r.visit_summary !== 'string' || !Array.isArray(r.sections) || !Array.isArray(r.action_items) || !Array.isArray(r.review_flags)) {
+    return [{ field: 'result', message: 'Malformed NoteResult' }];
+  }
+  if (r.sections.length !== tpl.sections.length) out.push({ field: 'result.sections', message: 'Sections must match the template' });
+  tpl.sections.forEach((s, i) => {
+    const got = r.sections[i];
+    if (!got || got.section_id !== s.id) out.push({ field: `result.sections.${i}.section_id`, message: `Expected ${s.id}` });
+    else if (got.format !== s.format) out.push({ field: `result.sections.${i}.format`, message: `Expected ${s.format}` });
+    else if (s.format === 'key_value' && [...(got.fields ?? []).map((f) => f.key)].sort().join() !== s.fields.map((f) => f.key).sort().join()) {
+      out.push({ field: `result.sections.${i}.fields`, message: 'Fields must match the template' });
+    }
+  });
+  if (r.visit_summary.length > 500) out.push({ field: 'result.visit_summary', message: 'At most 500 characters' });
+  return out;
 }
 
 // ---------------------------------------------------------------- validation

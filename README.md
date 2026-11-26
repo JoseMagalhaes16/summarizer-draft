@@ -10,6 +10,12 @@ surgery, euthanasia, discharge summaries, or your own.
   your AWS account.
 * **Frontend:** React 19 + TypeScript + Vite. Paste a transcript, pick a
   template, then review, edit and copy the note.
+* **Manual notes:** pick a template and write the note yourself, with no AI
+  involved. Optionally start from the template's normal findings, which are
+  marked for confirmation.
+* **AI switch:** `LLM_PROVIDER=none`, or the SAM parameter `LlmProvider=none`,
+  turns AI drafting off. The app keeps working with manual notes only
+  ([ADR-0014](docs/adr/0014-manual-notes.md)).
 * **Mock mode:** runs the whole stack locally with no AWS account and no LLM.
 * **Evaluations:** a case set, graders and runner, with an **Evaluations** tab
   for comparing prompts, models and settings with confidence intervals.

@@ -62,6 +62,14 @@ export function createHandlers(opts?: MockOptions & EvalMockOptions & { latencyM
         return run(() => { throw e; });
       }
     }),
+    http.post('*/v1/notes/manual', async ({ request }) => {
+      try {
+        const b = await body(request);
+        return run(() => engine.createManualNote(b), 201);
+      } catch (e) {
+        return run(() => { throw e; });
+      }
+    }),
     http.get('*/v1/notes', ({ request }) => {
       const limit = Number(new URL(request.url).searchParams.get('limit') ?? 50) || 50;
       return run(() => engine.listNotes(limit));
