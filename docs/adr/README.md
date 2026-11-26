@@ -19,3 +19,4 @@ Records are never deleted or rewritten. A decision that is reversed gets a new r
 | [0011](0011-security-privacy-baseline.md) | Security and privacy baseline for clinical transcripts | Accepted | 2026-11-20 |
 | [0012](0012-generation-consistency-and-recovery.md) | Generation consistency (fencing token), failure recovery and item-size limits | Accepted | 2026-11-20 |
 | [0013](0013-evaluation-approach.md) | Evaluation approach: atomic deterministic graders plus an optional judge | Accepted | 2026-11-20 |
+| [0014](0014-manual-notes.md) | Manual notes and AI-off mode | Accepted | 2026-11-26 |

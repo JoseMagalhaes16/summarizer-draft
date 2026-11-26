@@ -3,6 +3,7 @@ import { api } from './client';
 import type {
   CreateNoteInput,
   Health,
+  ManualNoteInput,
   Note,
   NoteResult,
   NoteSummary,
@@ -121,6 +122,23 @@ export function useCreateNote() {
       void qc.invalidateQueries({ queryKey: [...keys.notes, 'list'] });
     },
   });
+}
+
+export function useCreateManualNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ManualNoteInput) => api.post<Note>('/v1/notes/manual', input),
+    onSuccess: (n) => {
+      qc.setQueryData(keys.note(n.id), n);
+      void qc.invalidateQueries({ queryKey: [...keys.notes, 'list'] });
+    },
+  });
+}
+
+/** True unless the server says AI drafting is off. Defaults to on while loading. */
+export function useAiEnabled(): boolean {
+  const health = useHealth();
+  return health.data?.ai_enabled !== false;
 }
 
 export function useUpdateNote(id: string) {

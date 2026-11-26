@@ -1,9 +1,19 @@
 import { type ReactElement } from 'react';
 import { render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { ToastProvider } from '../components/Toast';
 import type { Note, Section, Template } from '../api/types';
+
+/** Catch-all route: shows where the app navigated to. */
+function Elsewhere() {
+  const loc = useLocation();
+  return (
+    <div>
+      elsewhere<span data-testid="location">{loc.pathname + loc.search}</span>
+    </div>
+  );
+}
 
 export function renderApp(ui: ReactElement, { route = '/', path = '/' }: { route?: string; path?: string } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 0 } } });
@@ -13,7 +23,7 @@ export function renderApp(ui: ReactElement, { route = '/', path = '/' }: { route
         <MemoryRouter initialEntries={[route]}>
           <Routes>
             <Route path={path} element={ui} />
-            <Route path="*" element={<div>elsewhere</div>} />
+            <Route path="*" element={<Elsewhere />} />
           </Routes>
         </MemoryRouter>
       </ToastProvider>
@@ -56,6 +66,7 @@ export function makeNote(p: Partial<Note> = {}): Note {
     generation_id: null,
     error: null,
     result: null,
+    source: 'ai',
     edited: false,
     model_info: null,
     created_at: new Date().toISOString(),

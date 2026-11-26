@@ -45,6 +45,14 @@ def read_only(what: str = "Built-in templates") -> AppError:
     return AppError(403, "READ_ONLY", f"{what} are read-only; duplicate to customise")
 
 
+def ai_disabled() -> AppError:
+    return AppError(
+        409,
+        "AI_DISABLED",
+        "AI drafting is switched off in this environment. Write the note manually.",
+    )
+
+
 def validation_error(message: str, details: list[Any] | None = None) -> AppError:
     return AppError(400, "VALIDATION_ERROR", message, details)
 

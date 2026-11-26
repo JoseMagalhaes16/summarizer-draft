@@ -116,6 +116,8 @@ export interface ModelInfo {
   latency_ms: number;
 }
 
+export type NoteSource = 'ai' | 'manual';
+
 export interface Note {
   id: string;
   template_id: string;
@@ -129,6 +131,8 @@ export interface Note {
   generation_id: string | null;
   error: NoteError | null;
   result: NoteResult | null;
+  /** How the note was created; stored notes without it read as "ai". */
+  source: NoteSource;
   edited: boolean;
   model_info: ModelInfo | null;
   created_at: string;
@@ -144,6 +148,7 @@ export interface NoteSummary {
   template_name: string;
   patient: Patient;
   status: NoteStatus;
+  source: NoteSource;
   visit_summary: string | null;
   created_at: string;
   updated_at: string;
@@ -156,10 +161,22 @@ export interface CreateNoteInput {
   clinician?: string;
 }
 
+export interface ManualNoteInput {
+  template_id: string;
+  patient?: Patient;
+  clinician?: string;
+  /** Reference text only; never sent to a model. */
+  transcript?: string;
+  result?: NoteResult;
+  prefill_defaults?: boolean;
+}
+
 export interface Health {
   status: string;
   llm_provider: string;
   storage: string;
+  /** False when AI drafting is switched off (LLM_PROVIDER=none). Missing means on. */
+  ai_enabled?: boolean;
   /** Optional: false when this server won't start evaluation runs. */
   evals_allow_trigger?: boolean;
 }

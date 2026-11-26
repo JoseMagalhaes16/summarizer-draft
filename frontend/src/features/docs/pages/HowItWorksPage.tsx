@@ -105,16 +105,28 @@ export function HowItWorksPage() {
         </p>
       </Question>
 
+      <Question
+        id="q-manual"
+        title="Can I use it without AI?"
+        answer="Yes. Choose Write it myself on the New note page and fill in the template by hand. Nothing is sent to a model."
+      >
+        <p>
+          A manual note is created already completed, with no transcript needed, and you edit it like any other note. Regenerate is not offered for it, because that would
+          overwrite what you wrote. If the server runs with <code>LLM_PROVIDER=none</code>, AI drafting is switched off for everyone: the app shows an AI off pill and only
+          manual notes are available, while templates, history, editing and copying keep working.
+        </p>
+      </Question>
+
       <CodeRefs
         files={[
-          ['backend/src/vetscribe/handlers/api.py', 'API Lambda and router'],
+          ['backend/src/vetscribe/handlers/api.py', 'API Lambda and router, including POST /v1/notes/manual'],
           ['backend/src/vetscribe/handlers/worker.py', 'Worker Lambda'],
           ['backend/src/vetscribe/handlers/dlq.py', 'Dead-letter queue handler'],
           ['backend/src/vetscribe/services/notes.py', 'Note lifecycle and status rules'],
           ['infra/template.yaml', 'AWS SAM template'],
           ['frontend/src/api/hooks.ts', 'Polling (useNote)'],
         ]}
-        adrs={['ADR-0002 Compute: Lambda', 'ADR-0005 Async generation and polling', 'ADR-0008 Local development and mock mode']}
+        adrs={['ADR-0002 Compute: Lambda', 'ADR-0005 Async generation and polling', 'ADR-0008 Local development and mock mode', 'ADR-0014 Manual notes and AI-off mode']}
       />
     </div>
   );

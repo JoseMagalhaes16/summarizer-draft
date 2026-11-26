@@ -78,7 +78,7 @@ class Settings:
         app_env = _choice(e, "APP_ENV", "local", ("local", "aws"))
         return cls(
             app_env=app_env,
-            llm_provider=_choice(e, "LLM_PROVIDER", "mock", ("mock", "bedrock")),
+            llm_provider=_choice(e, "LLM_PROVIDER", "mock", ("mock", "bedrock", "none")),
             storage_backend=_choice(e, "STORAGE_BACKEND", "memory", ("memory", "dynamodb")),
             local_data_file=e.get("LOCAL_DATA_FILE", ""),
             table_name=e.get("TABLE_NAME", ""),

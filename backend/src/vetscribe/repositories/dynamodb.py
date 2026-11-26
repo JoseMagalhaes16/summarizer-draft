@@ -100,6 +100,7 @@ class DynamoRepository:
             "template_name": note.template_name,
             "patient": note.patient.model_dump(),
             "status": note.status,
+            "source": note.source,
             "created_at": note.created_at,
             "updated_at": note.updated_at,
         }
@@ -112,14 +113,15 @@ class DynamoRepository:
 
     def put_note(self, clinic_id: str, note: Note) -> None:
         item = self._note_item(clinic_id, note)
-        tx_item = {
-            "PK": _pk(clinic_id),
-            "SK": f"NOTETX#{note.id}",
-            "entity": "transcript",
-            "transcript": note.transcript,
-        }
-        ensure_fits(tx_item)
-        self._table.put_item(Item=tx_item)
+        if note.transcript:  # manual notes may have none; get_note reads a missing item as ""
+            tx_item = {
+                "PK": _pk(clinic_id),
+                "SK": f"NOTETX#{note.id}",
+                "entity": "transcript",
+                "transcript": note.transcript,
+            }
+            ensure_fits(tx_item)
+            self._table.put_item(Item=tx_item)
         self._table.put_item(Item=item)
 
     def save_if_generation(
@@ -156,9 +158,10 @@ class DynamoRepository:
             "ScanIndexForward": False,
             "Limit": limit,
             "ProjectionExpression": (
-                "SK, template_id, template_name, #p, #s, visit_summary, created_at, updated_at"
+                "SK, template_id, template_name, #p, #s, #src, visit_summary, "
+                "created_at, updated_at"
             ),
-            "ExpressionAttributeNames": {"#p": "patient", "#s": "status"},
+            "ExpressionAttributeNames": {"#p": "patient", "#s": "status", "#src": "source"},
         }
         out: list[NoteSummary] = []
         while True:
@@ -171,6 +174,7 @@ class DynamoRepository:
                         template_name=i["template_name"],
                         patient=Patient.model_validate(i.get("patient") or {}),
                         status=i["status"],
+                        source=i.get("source") or "ai",
                         visit_summary=i.get("visit_summary") or None,
                         created_at=i["created_at"],
                         updated_at=i["updated_at"],

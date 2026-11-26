@@ -11,11 +11,15 @@ from ulid import ULID
 
 from vetscribe.config import Settings
 from vetscribe.domain.models import (
+    CreateManualNoteRequest,
     CreateNoteRequest,
     Note,
     NoteError,
     NoteResult,
     NoteSummary,
+    ResultField,
+    ResultSection,
+    Section,
     Template,
     utc_now_iso,
 )
@@ -24,6 +28,7 @@ from vetscribe.errors import (
     AppError,
     GenerationError,
     PayloadTooLargeError,
+    ai_disabled,
     not_found,
     validation_error,
 )
@@ -83,13 +88,47 @@ def check_result_matches_template(result: NoteResult, template: Template) -> Non
         raise validation_error("Result does not match the note's template", problems)
 
 
+def _blank_section(section: Section, *, prefill: bool) -> ResultSection:
+    content, items = "", []
+    defaults = section.normal_defaults.strip()
+    use_defaults = (
+        prefill
+        and section.missing_behavior == "use_normal_defaults"
+        and bool(defaults)
+        and section.format in ("paragraph", "bullets")
+    )
+    if use_defaults:
+        if section.format == "paragraph":
+            content = defaults
+        else:
+            items = [defaults]
+    return ResultSection(
+        section_id=section.id,
+        title=section.title,
+        format=section.format,
+        content=content,
+        items=items,
+        fields=[ResultField(key=f.key, label=f.label, value="") for f in section.fields],
+        not_discussed=not use_defaults,
+        used_defaults=use_defaults,
+    )
+
+
+def build_blank_result(template: Template, *, prefill_defaults: bool = False) -> NoteResult:
+    """An empty result shaped like ``template`` (optionally pre-filled with normal defaults)."""
+    return NoteResult(
+        visit_summary="",
+        sections=[_blank_section(s, prefill=prefill_defaults) for s in template.sections],
+    )
+
+
 class NoteService:
     def __init__(
         self,
         repo: NoteRepository,
         templates: TemplateService,
         dispatcher: JobDispatcher,
-        generator: NoteGenerator,
+        generator: NoteGenerator | None,
         settings: Settings,
     ) -> None:
         self._repo = repo
@@ -100,7 +139,39 @@ class NoteService:
 
     # -- API operations ----------------------------------------------------------------
 
+    def _require_ai(self) -> None:
+        if self._settings.llm_provider == "none" or self._generator is None:
+            raise ai_disabled()
+
+    def create_manual(self, clinic_id: str, req: CreateManualNoteRequest) -> Note:
+        transcript = req.transcript if req.transcript.strip() else ""
+        if len(transcript) > self._settings.max_transcript_chars:
+            limit = self._settings.max_transcript_chars
+            raise validation_error(f"transcript exceeds the maximum of {limit} characters")
+        template = self._templates.get(clinic_id, req.template_id)
+        if req.result is not None:
+            check_result_matches_template(req.result, template)
+            result = req.result
+        else:
+            result = build_blank_result(template, prefill_defaults=req.prefill_defaults)
+        note = Note(
+            id=str(ULID()),
+            template_id=template.id,
+            template_name=template.name,
+            template_snapshot=template,
+            patient=req.patient,
+            clinician=req.clinician,
+            transcript=transcript,
+            generation_id=_new_generation_id(),
+            status="completed",
+            result=result,
+            source="manual",
+        )
+        self._repo.put_note(clinic_id, note)
+        return note
+
     def create(self, clinic_id: str, req: CreateNoteRequest) -> Note:
+        self._require_ai()
         transcript = req.transcript
         if not transcript.strip():
             raise validation_error("transcript must not be blank")
@@ -194,7 +265,14 @@ class NoteService:
         return note
 
     def regenerate(self, clinic_id: str, note_id: str, template_id: str | None = None) -> Note:
+        self._require_ai()
         note = self.get(clinic_id, note_id)
+        if note.source == "manual":
+            raise AppError(
+                409,
+                "MANUAL_NOTE",
+                "Manual notes cannot be regenerated; create a new AI note from the transcript.",
+            )
         if note.status in _ACTIVE:
             raise AppError(409, "GENERATION_IN_PROGRESS", "This note is already being generated")
         previous = note.generation_id
@@ -306,6 +384,8 @@ class NoteService:
         error: NoteError | None = None
         model_info = None
         try:
+            if self._generator is None:
+                raise GenerationError("LLM_ERROR", "AI drafting is switched off.")
             gen = self._generator.generate(
                 note.template_snapshot,
                 note.transcript,

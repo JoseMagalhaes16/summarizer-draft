@@ -12,3 +12,11 @@ export function validateNewNote(templateId: string | null, transcript: string): 
   else if (transcriptUsage(transcript).over) errors.transcript = `This transcript is too long. ${TRANSCRIPT_LIMIT_HELP}`;
   return { valid: Object.keys(errors).length === 0, errors };
 }
+
+/** Manual notes need only a template; the reference transcript is optional but has the same size limits. */
+export function validateManualNote(templateId: string | null, reference: string): NewNoteValidation {
+  const errors: NewNoteValidation['errors'] = {};
+  if (!templateId) errors.template = 'Choose a template.';
+  if (reference.trim() && transcriptUsage(reference).over) errors.transcript = `This transcript is too long. ${TRANSCRIPT_LIMIT_HELP}`;
+  return { valid: Object.keys(errors).length === 0, errors };
+}

@@ -16,6 +16,11 @@ Parameters:
     Type: String
     Default: anthropic.claude-opus-5-5
     Description: Underlying foundation-model ID (BedrockModelId without the us./eu./global. prefix). Cross-region profiles route to other regions, so IAM allows any region for this model.
+  LlmProvider:
+    Type: String
+    Default: bedrock
+    AllowedValues: [bedrock, none]
+    Description: Set to none to switch AI drafting off (manual notes only; AI endpoints return 409 AI_DISABLED).
   BedrockStructuredMode:
     Type: String
     Default: output_config
@@ -56,7 +61,7 @@ Globals:
     Environment:
       Variables:
         APP_ENV: aws
-        LLM_PROVIDER: bedrock
+        LLM_PROVIDER: !Ref LlmProvider
         STORAGE_BACKEND: dynamodb
         TABLE_NAME: !Ref Table
         JOB_DISPATCHER: lambda

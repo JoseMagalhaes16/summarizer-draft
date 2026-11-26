@@ -55,9 +55,10 @@ class Container:
             return self._repository
 
     @property
-    def generator(self) -> NoteGenerator:
+    def generator(self) -> NoteGenerator | None:
+        """The note generator, or ``None`` when AI is switched off (``LLM_PROVIDER=none``)."""
         with self._lock:
-            if self._generator is None:
+            if self._generator is None and self.settings.llm_provider != "none":
                 if self.settings.llm_provider == "bedrock":
                     from vetscribe.llm.bedrock import BedrockNoteGenerator
 

@@ -61,6 +61,7 @@ def test_health(container: Container) -> None:
     assert status == 200 and body == {
         "status": "ok",
         "llm_provider": "mock",
+        "ai_enabled": True,
         "storage": "memory",
         "evals_allow_trigger": True,
     }

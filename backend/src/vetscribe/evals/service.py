@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from vetscribe.config import Settings
-from vetscribe.errors import AppError, not_found, validation_error
+from vetscribe.errors import AppError, ai_disabled, not_found, validation_error
 from vetscribe.evals.cases import DEFAULT_CASES_DIR, load_cases
 from vetscribe.evals.compare import compare_runs
 from vetscribe.evals.models import EvalCase, RunConfig
@@ -116,6 +116,8 @@ class EvalService:
                 "Starting eval runs from the API is disabled here. Run "
                 "`python -m vetscribe.evals.cli run` (or the eval GitHub workflow) instead.",
             )
+        if s.llm_provider == "none" and config.provider in ("mock", "bedrock"):
+            raise ai_disabled()
         if config.provider == "bedrock" and s.llm_provider != "bedrock":
             raise AppError(
                 400,

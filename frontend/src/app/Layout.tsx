@@ -4,7 +4,8 @@ import { Icon } from '../components/Icon';
 
 export function Layout() {
   const health = useHealth();
-  const isMock = health.data?.llm_provider === 'mock';
+  const aiOff = health.data?.ai_enabled === false;
+  const isMock = !aiOff && health.data?.llm_provider === 'mock';
 
   return (
     <div className="app">
@@ -41,6 +42,12 @@ export function Layout() {
       </aside>
       <div className="main">
         <div className="topbar">
+          {aiOff && (
+            <span className="pill-mock" title="AI drafting is switched off in this environment. You can still write notes yourself.">
+              <span className="pill-dot" aria-hidden="true" />
+              AI off
+            </span>
+          )}
           {isMock && (
             <span className="pill-mock" title="Notes are produced by a deterministic offline generator, not a real model.">
               <span className="pill-dot" aria-hidden="true" />

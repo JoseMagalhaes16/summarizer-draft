@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../test/server';
-import { makeNote, makeTemplate, renderApp } from '../../test/utils';
+import { makeNote, makeSection, makeTemplate, renderApp } from '../../test/utils';
 import { MAX_TRANSCRIPT_BYTES, MAX_TRANSCRIPT_CHARS } from '../../api/types';
 import { validateNewNote } from './newNoteValidation';
 import { NewNotePage } from './NewNotePage';
@@ -10,6 +10,7 @@ import { NewNotePage } from './NewNotePage';
 const templates = [makeTemplate(), makeTemplate({ id: 'builtin-dental', name: 'Dental (COHAT)', appointment_type: 'dental' })];
 
 beforeEach(() => {
+  window.localStorage.clear();
   server.use(http.get('*/v1/templates', () => HttpResponse.json({ items: templates })));
 });
 
@@ -123,5 +124,129 @@ describe('NewNotePage', () => {
     await userEvent.type(screen.getByLabelText('Transcript'), 'x');
     await userEvent.click(screen.getByRole('button', { name: /generate note/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Transcript too long');
+  });
+});
+
+describe('NewNotePage: manual notes', () => {
+  const withDefaults = makeTemplate({
+    id: 'builtin-sick',
+    name: 'Sick visit',
+    sections: [makeSection({ id: 'systems', title: 'Systems', missing_behavior: 'use_normal_defaults', normal_defaults: 'Heart and lungs normal.' })],
+  });
+  const manualTemplates = [makeTemplate(), withDefaults];
+  let posted: unknown;
+
+  beforeEach(() => {
+    posted = undefined;
+    server.use(
+      http.get('*/v1/templates', () => HttpResponse.json({ items: manualTemplates })),
+      http.post('*/v1/notes/manual', async ({ request }) => {
+        posted = await request.json();
+        return HttpResponse.json(makeNote({ id: 'MAN1', status: 'completed', source: 'manual' }), { status: 201 });
+      }),
+    );
+  });
+
+  const choose = (name: RegExp) => userEvent.click(screen.getByRole('radio', { name }));
+
+  it('defaults to drafting from a transcript and remembers a switch to manual', async () => {
+    const { unmount } = renderApp(<NewNotePage />);
+    expect(screen.getByRole('radio', { name: /draft from a transcript/i })).toBeChecked();
+    await choose(/write it myself/i);
+    expect(screen.getByRole('button', { name: 'Create note' })).toBeInTheDocument();
+    expect(window.localStorage.getItem('vetscribe.newNoteMode')).toBe('manual');
+    unmount();
+
+    renderApp(<NewNotePage />);
+    expect(screen.getByRole('radio', { name: /write it myself/i })).toBeChecked();
+    await choose(/draft from a transcript/i);
+    expect(screen.getByRole('button', { name: /generate note/i })).toBeInTheDocument();
+  });
+
+  it('survives blocked storage', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    renderApp(<NewNotePage />);
+    await choose(/write it myself/i);
+    expect(screen.getByRole('button', { name: 'Create note' })).toBeInTheDocument();
+    vi.restoreAllMocks();
+  });
+
+  it('?mode=manual selects manual mode', () => {
+    renderApp(<NewNotePage />, { route: '/?mode=manual' });
+    expect(screen.getByRole('radio', { name: /write it myself/i })).toBeChecked();
+  });
+
+  it('creates a blank note without needing a transcript, then opens it in edit mode', async () => {
+    renderApp(<NewNotePage />, { route: '/?mode=manual' });
+    await screen.findByRole('radio', { name: /SOAP/ });
+    const create = screen.getByRole('button', { name: 'Create note' });
+    expect(create).toBeEnabled();
+    await userEvent.click(create);
+    await waitFor(() => expect(posted).toBeDefined());
+    expect(posted).toEqual({ template_id: 'builtin-soap', patient: {} });
+    expect(await screen.findByText('Note created')).toBeInTheDocument();
+  });
+
+  it('navigates to the new note in edit mode', async () => {
+    renderApp(<NewNotePage />, { route: '/?mode=manual' });
+    await screen.findByRole('radio', { name: /SOAP/ });
+    await userEvent.click(screen.getByRole('button', { name: 'Create note' }));
+    expect(await screen.findByTestId('location')).toHaveTextContent('/notes/MAN1?edit=1');
+  });
+
+  it('sends prefill_defaults and the reference transcript when chosen', async () => {
+    renderApp(<NewNotePage />, { route: '/?mode=manual' });
+    await screen.findByRole('radio', { name: /Sick visit/ });
+    await choose(/Sick visit/);
+    await choose(/normal findings/i);
+    await userEvent.click(screen.getByText(/^Reference transcript/, { selector: 'summary' }));
+    await userEvent.type(screen.getByLabelText('Reference transcript'), 'Owner: limping');
+    await userEvent.click(screen.getByRole('button', { name: 'Create note' }));
+    await waitFor(() => expect(posted).toBeDefined());
+    expect(posted).toMatchObject({ template_id: 'builtin-sick', prefill_defaults: true, transcript: 'Owner: limping' });
+  });
+
+  it('disables the normal-findings option, with a hint, for templates without defaults', async () => {
+    renderApp(<NewNotePage />, { route: '/?mode=manual' });
+    await screen.findByRole('radio', { name: /Sick visit/ });
+    expect(screen.getByRole('radio', { name: /normal findings/i })).toBeDisabled();
+    expect(screen.getByText(/has no normal findings/i)).toBeInTheDocument();
+    await choose(/Sick visit/);
+    expect(screen.getByRole('radio', { name: /normal findings/i })).toBeEnabled();
+    await choose(/normal findings/i);
+    // Going back to a template without defaults falls back to blank sections.
+    await choose(/SOAP/);
+    await userEvent.click(screen.getByRole('button', { name: 'Create note' }));
+    await waitFor(() => expect(posted).toBeDefined());
+    expect(posted).not.toHaveProperty('prefill_defaults');
+  });
+
+  it('shows the server message when creation fails', async () => {
+    server.use(http.post('*/v1/notes/manual', () => HttpResponse.json({ error: { code: 'VALIDATION_ERROR', message: 'Bad template' } }, { status: 400 })));
+    renderApp(<NewNotePage />, { route: '/?mode=manual' });
+    await screen.findByRole('radio', { name: /SOAP/ });
+    await userEvent.click(screen.getByRole('button', { name: 'Create note' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Bad template');
+  });
+});
+
+describe('NewNotePage: AI switched off', () => {
+  beforeEach(() => {
+    window.localStorage.setItem('vetscribe.newNoteMode', 'ai');
+    server.use(http.get('*/v1/health', () => HttpResponse.json({ status: 'ok', llm_provider: 'none', storage: 'memory', ai_enabled: false })));
+  });
+
+  it('disables the AI option, explains why, and defaults to manual', async () => {
+    renderApp(<NewNotePage />);
+    expect(await screen.findByText(/AI drafting is switched off in this environment/)).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /draft from a transcript/i })).toBeDisabled();
+    expect(screen.getByRole('radio', { name: /write it myself/i })).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Create note' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /generate note/i })).not.toBeInTheDocument();
   });
 });

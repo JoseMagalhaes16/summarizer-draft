@@ -237,6 +237,8 @@ export interface EvalMockOptions {
   /** ms for a created run to go from running to completed. */
   runDurationMs?: number;
   seedRuns?: boolean;
+  /** Behave like LLM_PROVIDER=none: mock/bedrock runs are refused. */
+  aiOff?: boolean;
 }
 
 export class EvalMockEngine {
@@ -244,9 +246,11 @@ export class EvalMockEngine {
   runs: StoredRun[] = [];
   readonly runDurationMs: number;
   private seq = 0;
+  private aiOff = false;
 
   constructor(opts: EvalMockOptions = {}) {
     this.runDurationMs = opts.runDurationMs ?? 4000;
+    this.aiOff = opts.aiOff === true;
     if (opts.seedRuns !== false) this.seed();
   }
 
@@ -386,6 +390,9 @@ export class EvalMockEngine {
     if (!b.provider || !(b.provider in PROFILES)) throw bad('provider must be mock, oracle, null or bedrock');
     const reps = b.reps ?? 2;
     if (!Number.isInteger(reps) || reps < 1 || reps > 5) throw bad('reps must be between 1 and 5');
+    if (this.aiOff && (b.provider === 'mock' || b.provider === 'bedrock')) {
+      throw new MockApiError(409, 'AI_DISABLED', 'AI drafting is switched off in this environment. Write the note manually.');
+    }
     if (/forbid/i.test(b.label)) {
       throw new MockApiError(403, 'EVALS_TRIGGER_DISABLED', 'Starting evaluation runs from the API is turned off on this server (EVALS_ALLOW_TRIGGER=false).');
     }
