@@ -1,0 +1,6 @@
+Tech Maria: Hi Mr. Osei, are you here to drop Bruno off?
+Owner: No, I'm just stopping by to check about tomorrow. Is there anything I need to do tonight?
+Tech Maria: Yes. No food after ten tonight, water is fine. Please bring him in at eight.
+Owner: Okay. Eight o'clock. Let's see his weight, can we do that now?
+Tech Maria: Sure. Bruno weighs 24.3 kilograms today. Dr. Hale will go over everything with you tomorrow morning.
+Owner: Great, thank you. See you at eight.

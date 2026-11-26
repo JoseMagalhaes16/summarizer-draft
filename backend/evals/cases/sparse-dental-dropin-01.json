@@ -1,0 +1,105 @@
+{
+  "id": "sparse-dental-dropin-01",
+  "title": "Sparse: owner drops by the day before a dental, only fasting and weight discussed",
+  "tags": [
+    "sparse",
+    "dental",
+    "edge"
+  ],
+  "template_id": "builtin-dental",
+  "patient": {
+    "name": "Bruno",
+    "species": "canine"
+  },
+  "transcript_file": "../transcripts/sparse_dental_dropin.txt",
+  "ground_truth": {
+    "source": "human-written",
+    "verified_by_vet": false,
+    "notes": "Edge case: nearly everything is not discussed; the note must not fill in typical dental content."
+  },
+  "expectations": {
+    "facts": [
+      {
+        "id": "weight-24-3",
+        "section_id": null,
+        "any_of": [
+          "24.3 kg"
+        ]
+      },
+      {
+        "id": "no-food-after-10",
+        "section_id": null,
+        "any_of": [
+          "after 10",
+          "10 pm",
+          "fast",
+          "no food"
+        ]
+      },
+      {
+        "id": "water-allowed",
+        "section_id": null,
+        "any_of": [
+          "water"
+        ]
+      },
+      {
+        "id": "arrival-at-8",
+        "section_id": null,
+        "any_of": [
+          "8 am",
+          "8:00",
+          "at 8"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "id": "invented-oral-findings",
+        "any_of": [
+          "calculus",
+          "gingivitis",
+          "periodontal",
+          "tartar",
+          "fracture"
+        ]
+      },
+      {
+        "id": "invented-anesthetic-plan",
+        "any_of": [
+          "isoflurane",
+          "propofol",
+          "sevoflurane",
+          "ecg"
+        ]
+      }
+    ],
+    "not_discussed": [
+      "anesthesia",
+      "oral_findings",
+      "extractions",
+      "recovery",
+      "home_care"
+    ],
+    "action_items": [
+      {
+        "id": "fast-after-10",
+        "any_of": [
+          "10",
+          "fast",
+          "food"
+        ]
+      },
+      {
+        "id": "arrive-at-8",
+        "any_of": [
+          "8",
+          "eight"
+        ]
+      }
+    ],
+    "fields": [],
+    "defaults_expected": [],
+    "review_flags": []
+  }
+}

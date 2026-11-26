@@ -1,0 +1,214 @@
+{
+  "id": "canine-spay-surgery-01",
+  "title": "Elective spay (OHE), uncomplicated: operative report dictation",
+  "tags": [
+    "surgery",
+    "canine",
+    "elective"
+  ],
+  "template_id": "builtin-surgery",
+  "patient": {
+    "name": "Luna",
+    "species": "canine"
+  },
+  "transcript_file": "../transcripts/canine_spay_surgery.txt",
+  "ground_truth": {
+    "source": "human-written",
+    "verified_by_vet": false,
+    "notes": ""
+  },
+  "expectations": {
+    "fields": [
+      {
+        "section_id": "asa_status",
+        "key": "asa_class",
+        "expected": "1"
+      }
+    ],
+    "facts": [
+      {
+        "id": "weight-20-4",
+        "section_id": null,
+        "any_of": [
+          "20.4 kg"
+        ]
+      },
+      {
+        "id": "elective-healthy",
+        "section_id": "preoperative",
+        "any_of": [
+          "elective",
+          "healthy"
+        ]
+      },
+      {
+        "id": "dexmedetomidine",
+        "section_id": "anesthetic_protocol",
+        "any_of": [
+          "dexmedetomidine"
+        ]
+      },
+      {
+        "id": "hydromorphone",
+        "section_id": "anesthetic_protocol",
+        "any_of": [
+          "hydromorphone"
+        ]
+      },
+      {
+        "id": "propofol-induction",
+        "section_id": "anesthetic_protocol",
+        "any_of": [
+          "propofol"
+        ]
+      },
+      {
+        "id": "isoflurane-maintenance",
+        "section_id": "anesthetic_protocol",
+        "any_of": [
+          "isoflurane"
+        ]
+      },
+      {
+        "id": "lidocaine-line-block",
+        "section_id": null,
+        "any_of": [
+          "lidocaine"
+        ]
+      },
+      {
+        "id": "ventral-midline",
+        "section_id": "procedure",
+        "any_of": [
+          "ventral midline"
+        ]
+      },
+      {
+        "id": "ovariohysterectomy",
+        "section_id": null,
+        "any_of": [
+          "ovariohysterectomy",
+          "ohe"
+        ]
+      },
+      {
+        "id": "pedicle-ligation",
+        "section_id": "procedure",
+        "any_of": [
+          "ligat",
+          "transfix"
+        ]
+      },
+      {
+        "id": "linea-alba-closure",
+        "section_id": "closure",
+        "any_of": [
+          "linea alba"
+        ]
+      },
+      {
+        "id": "pds-suture",
+        "section_id": "closure",
+        "any_of": [
+          "pds",
+          "polydioxanone"
+        ]
+      },
+      {
+        "id": "intradermal-skin",
+        "section_id": "closure",
+        "any_of": [
+          "intradermal"
+        ]
+      },
+      {
+        "id": "no-complications",
+        "section_id": "complications",
+        "any_of": [
+          "no complications",
+          "uneventful",
+          "without complication"
+        ]
+      },
+      {
+        "id": "meloxicam-post-op",
+        "section_id": "post_op",
+        "any_of": [
+          "meloxicam"
+        ]
+      },
+      {
+        "id": "e-collar",
+        "section_id": "post_op",
+        "any_of": [
+          "e-collar",
+          "collar"
+        ]
+      },
+      {
+        "id": "restricted-activity",
+        "section_id": "post_op",
+        "any_of": [
+          "restrict",
+          "leash"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "id": "unadministered-drugs",
+        "any_of": [
+          "ketamine",
+          "butorphanol",
+          "cefazolin",
+          "tramadol",
+          "carprofen",
+          "gabapentin"
+        ]
+      },
+      {
+        "id": "invented-complication",
+        "any_of": [
+          "hemorrhage requiring",
+          "excessive bleeding",
+          "hypotension",
+          "dehiscence",
+          "splenic"
+        ]
+      },
+      {
+        "id": "wrong-asa",
+        "any_of": [
+          "asa 2",
+          "asa ii",
+          "asa class 2"
+        ]
+      }
+    ],
+    "action_items": [
+      {
+        "id": "incision-check-10-days",
+        "any_of": [
+          "10 days",
+          "incision"
+        ]
+      },
+      {
+        "id": "send-meloxicam-home",
+        "any_of": [
+          "meloxicam"
+        ]
+      },
+      {
+        "id": "call-owner-tonight",
+        "any_of": [
+          "call",
+          "owner"
+        ]
+      }
+    ],
+    "not_discussed": [],
+    "defaults_expected": [],
+    "review_flags": []
+  }
+}

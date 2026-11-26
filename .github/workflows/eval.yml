@@ -1,0 +1,102 @@
+name: Eval
+
+on:
+  pull_request:
+    paths:
+      - "backend/evals/**"
+      - "backend/src/vetscribe/evals/**"
+      - "backend/src/vetscribe/prompts/**"
+      - "backend/src/vetscribe/domain/**"
+      - ".github/workflows/eval.yml"
+  workflow_dispatch:
+    inputs:
+      model_id:
+        description: Bedrock model or inference-profile id (empty = backend default)
+        required: false
+        default: ""
+      reps:
+        description: Repetitions per case
+        required: false
+        default: "3"
+      effort:
+        description: Effort level
+        required: false
+        default: medium
+        type: choice
+        options: [low, medium, high]
+
+permissions:
+  contents: read
+
+jobs:
+  self-test:
+    # Cheap, no AWS: case-set validation plus the oracle and null harness self-test.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - run: pip install -e ".[dev]"
+      - run: python -m vetscribe.evals.cli validate-cases
+      - name: Oracle must score 1.0 on every deterministic metric
+        run: >
+          python -m vetscribe.evals.cli run --provider oracle --reps 1
+          --results-dir "$RUNNER_TEMP/evals"
+          --fail-under fact_recall=1 --fail-under field_accuracy=1
+          --fail-under hallucination_free=1 --fail-under missing_data_handling=1
+          --fail-under flag_recall=1 --fail-under action_recall=1
+          --fail-under faithfulness_proxy=1
+      - name: Null generator must not score
+        run: |
+          python -m vetscribe.evals.cli run --provider null --reps 1 \
+            --results-dir "$RUNNER_TEMP/evals" --label null | tee null.txt
+          grep -E '^fact_recall +0\.000' null.txt
+
+  bedrock:
+    if: github.event_name == 'workflow_dispatch'
+    needs: self-test
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      EVAL_STORE: s3
+      EVAL_S3_BUCKET: ${{ vars.EVAL_S3_BUCKET }}
+      EVAL_S3_PREFIX: evals/
+      EVAL_PRICE_TABLE_JSON: ${{ vars.EVAL_PRICE_TABLE_JSON }}
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - run: pip install -e .
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_EVAL_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Run evaluation on Bedrock
+        env:
+          MODEL_ID: ${{ inputs.model_id }}
+          REPS: ${{ inputs.reps }}
+          EFFORT: ${{ inputs.effort }}
+        run: |
+          args=(--provider bedrock --reps "$REPS" --effort "$EFFORT" --label "gha-${GITHUB_RUN_ID}")
+          if [ -n "$MODEL_ID" ]; then args+=(--model-id "$MODEL_ID"); fi
+          python -m vetscribe.evals.cli run "${args[@]}" --by-tag | tee "$RUNNER_TEMP/summary.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-summary
+          path: ${{ runner.temp }}/summary.txt

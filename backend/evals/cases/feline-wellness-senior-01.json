@@ -1,0 +1,242 @@
+{
+  "id": "feline-wellness-senior-01",
+  "title": "Senior cat annual: weight loss, polyphagia, thyroid nodule (suspected hyperthyroidism)",
+  "tags": [
+    "wellness",
+    "feline",
+    "senior"
+  ],
+  "template_id": "builtin-wellness",
+  "patient": {
+    "name": "Miso",
+    "species": "feline"
+  },
+  "transcript_file": "../../tests/fixtures/transcripts/feline_wellness.txt",
+  "ground_truth": {
+    "source": "human-written",
+    "verified_by_vet": false,
+    "notes": ""
+  },
+  "expectations": {
+    "fields": [
+      {
+        "section_id": "vitals",
+        "key": "temperature",
+        "expected": "101.8 F"
+      },
+      {
+        "section_id": "vitals",
+        "key": "heart_rate",
+        "expected": "220 bpm"
+      },
+      {
+        "section_id": "vitals",
+        "key": "resp_rate",
+        "expected": "32 breaths/min"
+      },
+      {
+        "section_id": "vitals",
+        "key": "weight",
+        "expected": "4.9 kg"
+      },
+      {
+        "section_id": "vitals",
+        "key": "bcs",
+        "expected": "4/9"
+      },
+      {
+        "section_id": "vitals",
+        "key": "mm",
+        "expected": "pink"
+      },
+      {
+        "section_id": "vitals",
+        "key": "crt",
+        "expected": "<2 s"
+      },
+      {
+        "section_id": "vitals",
+        "key": "pain_score",
+        "expected": ""
+      }
+    ],
+    "facts": [
+      {
+        "id": "weight-loss",
+        "section_id": null,
+        "any_of": [
+          "weight loss",
+          "lost weight",
+          "down almost"
+        ]
+      },
+      {
+        "id": "polyphagia",
+        "section_id": null,
+        "any_of": [
+          "increased appetite",
+          "polyphagia",
+          "eating more",
+          "hyperphagia"
+        ]
+      },
+      {
+        "id": "polydipsia",
+        "section_id": null,
+        "any_of": [
+          "polydipsia",
+          "drinking more",
+          "increased thirst",
+          "increased water"
+        ]
+      },
+      {
+        "id": "suspect-hyperthyroidism",
+        "section_id": "assessment",
+        "any_of": [
+          "hyperthyroid"
+        ]
+      },
+      {
+        "id": "thyroid-nodule",
+        "section_id": null,
+        "any_of": [
+          "thyroid nodule",
+          "thyroid"
+        ]
+      },
+      {
+        "id": "new-murmur",
+        "section_id": null,
+        "any_of": [
+          "murmur"
+        ]
+      },
+      {
+        "id": "murmur-grade-2",
+        "section_id": null,
+        "any_of": [
+          "2/6",
+          "ii/vi",
+          "grade 2",
+          "grade ii"
+        ]
+      },
+      {
+        "id": "fvrcp-given",
+        "section_id": "vaccines",
+        "any_of": [
+          "fvrcp"
+        ]
+      },
+      {
+        "id": "rabies-current",
+        "section_id": "vaccines",
+        "any_of": [
+          "rabies"
+        ]
+      },
+      {
+        "id": "flea-spot-on",
+        "section_id": "parasite_prevention",
+        "any_of": [
+          "flea",
+          "spot-on",
+          "spot on"
+        ]
+      },
+      {
+        "id": "t4-test",
+        "section_id": null,
+        "any_of": [
+          "t4"
+        ]
+      },
+      {
+        "id": "urinalysis",
+        "section_id": null,
+        "any_of": [
+          "urinalysis"
+        ]
+      },
+      {
+        "id": "blood-pressure",
+        "section_id": null,
+        "any_of": [
+          "blood pressure"
+        ]
+      },
+      {
+        "id": "echocardiogram-considered",
+        "section_id": null,
+        "any_of": [
+          "echocardiogram",
+          "echo"
+        ]
+      },
+      {
+        "id": "dental-tartar",
+        "section_id": "physical_exam",
+        "any_of": [
+          "tartar",
+          "gingivitis"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "id": "hyperthyroid-not-confirmed",
+        "any_of": [
+          "confirmed hyperthyroidism",
+          "diagnosed with hyperthyroidism",
+          "diagnosis of hyperthyroidism"
+        ]
+      },
+      {
+        "id": "unnamed-treatment",
+        "any_of": [
+          "methimazole",
+          "carbimazole",
+          "atenolol",
+          "insulin"
+        ]
+      },
+      {
+        "id": "felv-vaccine-not-given",
+        "any_of": [
+          "felv",
+          "leukemia"
+        ]
+      }
+    ],
+    "defaults_expected": [
+      "physical_exam"
+    ],
+    "action_items": [
+      {
+        "id": "senior-bloodwork",
+        "any_of": [
+          "t4",
+          "blood panel",
+          "bloodwork"
+        ]
+      },
+      {
+        "id": "call-with-results",
+        "any_of": [
+          "call"
+        ]
+      },
+      {
+        "id": "bp-recheck-two-weeks",
+        "any_of": [
+          "two weeks",
+          "2 weeks",
+          "recheck"
+        ]
+      }
+    ],
+    "not_discussed": [],
+    "review_flags": []
+  }
+}

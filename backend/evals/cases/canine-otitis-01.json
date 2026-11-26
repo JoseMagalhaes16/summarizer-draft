@@ -1,0 +1,246 @@
+{
+  "id": "canine-otitis-01",
+  "title": "Dog with bilateral otitis, ear drops + carprofen (dose unconfirmed)",
+  "tags": [
+    "sick",
+    "canine",
+    "medications"
+  ],
+  "template_id": "builtin-sick",
+  "patient": {
+    "name": "Bella",
+    "species": "canine"
+  },
+  "transcript_file": "../../tests/fixtures/transcripts/canine_otitis.txt",
+  "ground_truth": {
+    "source": "human-written",
+    "verified_by_vet": false,
+    "notes": "Vet says carprofen dose is to be confirmed with the technician: expect a review flag and no invented dose."
+  },
+  "expectations": {
+    "fields": [
+      {
+        "section_id": "vitals",
+        "key": "temperature",
+        "expected": "101.6 F"
+      },
+      {
+        "section_id": "vitals",
+        "key": "heart_rate",
+        "expected": "96 bpm"
+      },
+      {
+        "section_id": "vitals",
+        "key": "resp_rate",
+        "expected": "24 breaths/min"
+      },
+      {
+        "section_id": "vitals",
+        "key": "weight",
+        "expected": "32 kg"
+      },
+      {
+        "section_id": "vitals",
+        "key": "bcs",
+        "expected": "5/9"
+      },
+      {
+        "section_id": "vitals",
+        "key": "mm",
+        "expected": "pink and moist"
+      },
+      {
+        "section_id": "vitals",
+        "key": "crt",
+        "expected": "<2 s"
+      },
+      {
+        "section_id": "vitals",
+        "key": "pain_score",
+        "expected": ""
+      }
+    ],
+    "facts": [
+      {
+        "id": "otitis-externa",
+        "section_id": "problem_list",
+        "any_of": [
+          "otitis"
+        ]
+      },
+      {
+        "id": "cytology-yeast",
+        "section_id": null,
+        "any_of": [
+          "malassezia",
+          "yeast"
+        ]
+      },
+      {
+        "id": "cytology-bacteria",
+        "section_id": null,
+        "any_of": [
+          "rod",
+          "bacteria",
+          "bacterial"
+        ]
+      },
+      {
+        "id": "underlying-allergy",
+        "section_id": null,
+        "any_of": [
+          "allergy",
+          "allergic",
+          "atopy",
+          "atopic"
+        ]
+      },
+      {
+        "id": "left-ear-canal",
+        "section_id": null,
+        "any_of": [
+          "left ear canal",
+          "left ear"
+        ]
+      },
+      {
+        "id": "skin-erythema",
+        "section_id": "physical_exam",
+        "any_of": [
+          "erythema",
+          "axilla",
+          "between the toes",
+          "interdigital"
+        ]
+      },
+      {
+        "id": "drops-frequency",
+        "section_id": "treatment_plan",
+        "any_of": [
+          "twice daily",
+          "bid",
+          "q12h",
+          "every 12 hours"
+        ]
+      },
+      {
+        "id": "drops-duration",
+        "section_id": "treatment_plan",
+        "any_of": [
+          "14 days",
+          "two weeks",
+          "2 weeks"
+        ]
+      },
+      {
+        "id": "ear-flush-cleaner",
+        "section_id": null,
+        "any_of": [
+          "flush",
+          "cleaner",
+          "cleanser"
+        ]
+      },
+      {
+        "id": "no-cotton-swabs",
+        "section_id": null,
+        "any_of": [
+          "cotton"
+        ]
+      },
+      {
+        "id": "keep-out-of-water",
+        "section_id": null,
+        "any_of": [
+          "water",
+          "swim"
+        ]
+      },
+      {
+        "id": "carprofen",
+        "section_id": null,
+        "any_of": [
+          "carprofen"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "id": "unstated-antibiotic",
+        "any_of": [
+          "amoxicillin",
+          "cephalexin",
+          "clavamox",
+          "enrofloxacin",
+          "doxycycline"
+        ]
+      },
+      {
+        "id": "unstated-ear-product",
+        "any_of": [
+          "mometamax",
+          "posatex",
+          "otomax",
+          "surolan",
+          "osurnia"
+        ]
+      },
+      {
+        "id": "invented-carprofen-dose",
+        "any_of": [
+          "2.2 mg/kg",
+          "4.4 mg/kg",
+          "2 mg/kg",
+          "4 mg/kg"
+        ]
+      },
+      {
+        "id": "eardrum-rupture-not-stated",
+        "any_of": [
+          "ruptured",
+          "rupture",
+          "perforat"
+        ]
+      }
+    ],
+    "defaults_expected": [
+      "physical_exam"
+    ],
+    "review_flags": [
+      {
+        "id": "carprofen-dose-unconfirmed",
+        "any_of": [
+          "carprofen"
+        ]
+      }
+    ],
+    "action_items": [
+      {
+        "id": "recheck-ears",
+        "any_of": [
+          "recheck",
+          "re-check",
+          "two weeks",
+          "14 days"
+        ]
+      },
+      {
+        "id": "allergy-workup",
+        "any_of": [
+          "allergy",
+          "food trial",
+          "work-up",
+          "workup"
+        ]
+      },
+      {
+        "id": "confirm-carprofen-dose",
+        "any_of": [
+          "carprofen",
+          "dose"
+        ]
+      }
+    ],
+    "not_discussed": []
+  }
+}

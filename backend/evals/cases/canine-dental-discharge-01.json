@@ -1,0 +1,212 @@
+{
+  "id": "canine-dental-discharge-01",
+  "title": "Post-extraction discharge instructions for the owner (client-friendly tone)",
+  "tags": [
+    "discharge",
+    "canine",
+    "dental",
+    "client_friendly"
+  ],
+  "template_id": "builtin-discharge",
+  "patient": {
+    "name": "Daisy",
+    "species": "canine"
+  },
+  "transcript_file": "../transcripts/canine_dental_discharge.txt",
+  "ground_truth": {
+    "source": "human-written",
+    "verified_by_vet": false,
+    "notes": "Style (plain language, no jargon) is judged by the LLM judge; deterministic graders check content only."
+  },
+  "expectations": {
+    "facts": [
+      {
+        "id": "cleaning-under-anesthesia",
+        "section_id": "what_we_did",
+        "any_of": [
+          "cleaning",
+          "cleaned"
+        ]
+      },
+      {
+        "id": "xrays-taken",
+        "section_id": "what_we_did",
+        "any_of": [
+          "x-ray",
+          "xray",
+          "radiograph"
+        ]
+      },
+      {
+        "id": "three-teeth-removed",
+        "section_id": null,
+        "any_of": [
+          "three teeth",
+          "3 teeth",
+          "three extractions"
+        ]
+      },
+      {
+        "id": "dissolving-stitches",
+        "section_id": "what_we_did",
+        "any_of": [
+          "stitch",
+          "suture"
+        ]
+      },
+      {
+        "id": "gum-disease-diagnosis",
+        "section_id": "diagnosis",
+        "any_of": [
+          "gum disease",
+          "periodontal",
+          "infect"
+        ]
+      },
+      {
+        "id": "carprofen",
+        "section_id": "medications",
+        "any_of": [
+          "carprofen"
+        ]
+      },
+      {
+        "id": "carprofen-25-mg",
+        "section_id": "medications",
+        "any_of": [
+          "25 mg"
+        ]
+      },
+      {
+        "id": "carprofen-five-days",
+        "section_id": "medications",
+        "any_of": [
+          "5 days"
+        ]
+      },
+      {
+        "id": "gabapentin",
+        "section_id": "medications",
+        "any_of": [
+          "gabapentin"
+        ]
+      },
+      {
+        "id": "gabapentin-100-mg",
+        "section_id": "medications",
+        "any_of": [
+          "100 mg"
+        ]
+      },
+      {
+        "id": "gabapentin-three-days",
+        "section_id": "medications",
+        "any_of": [
+          "3 days"
+        ]
+      },
+      {
+        "id": "soft-food-ten-days",
+        "section_id": "home_care",
+        "any_of": [
+          "10 days"
+        ]
+      },
+      {
+        "id": "no-hard-chews",
+        "section_id": "home_care",
+        "any_of": [
+          "chew",
+          "rawhide",
+          "bones"
+        ]
+      },
+      {
+        "id": "warn-bleeding",
+        "section_id": "warning_signs",
+        "any_of": [
+          "bleed"
+        ]
+      },
+      {
+        "id": "warn-facial-swelling",
+        "section_id": "warning_signs",
+        "any_of": [
+          "swelling"
+        ]
+      },
+      {
+        "id": "warn-not-eating",
+        "section_id": "warning_signs",
+        "any_of": [
+          "eat",
+          "appetite"
+        ]
+      },
+      {
+        "id": "recheck-two-weeks",
+        "section_id": "next_steps",
+        "any_of": [
+          "2 weeks",
+          "recheck"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "id": "unprescribed-drugs",
+        "any_of": [
+          "tramadol",
+          "meloxicam",
+          "amoxicillin",
+          "clavamox",
+          "clindamycin",
+          "buprenorphine",
+          "prednisone"
+        ]
+      },
+      {
+        "id": "invented-pathology",
+        "any_of": [
+          "cancer",
+          "tumor",
+          "malignan"
+        ]
+      },
+      {
+        "id": "invented-complication",
+        "any_of": [
+          "arrhythmia",
+          "hypotension"
+        ]
+      }
+    ],
+    "action_items": [
+      {
+        "id": "book-recheck",
+        "any_of": [
+          "recheck",
+          "2 weeks"
+        ]
+      },
+      {
+        "id": "give-medicines",
+        "any_of": [
+          "carprofen",
+          "gabapentin"
+        ]
+      },
+      {
+        "id": "soft-food",
+        "any_of": [
+          "soft food",
+          "soft"
+        ]
+      }
+    ],
+    "fields": [],
+    "not_discussed": [],
+    "defaults_expected": [],
+    "review_flags": []
+  }
+}

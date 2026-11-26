@@ -1,0 +1,234 @@
+{
+  "id": "canine-dental-preop-01",
+  "title": "Cavalier with heart murmur: dental pre-op consult (ASA III)",
+  "tags": [
+    "dental",
+    "canine",
+    "cardiac"
+  ],
+  "template_id": "builtin-dental",
+  "patient": {
+    "name": "Max",
+    "species": "canine"
+  },
+  "transcript_file": "../../tests/fixtures/transcripts/canine_dental_preop.txt",
+  "ground_truth": {
+    "source": "human-written",
+    "verified_by_vet": false,
+    "notes": ""
+  },
+  "expectations": {
+    "facts": [
+      {
+        "id": "asa-3",
+        "section_id": null,
+        "any_of": [
+          "asa 3",
+          "asa iii",
+          "asa three",
+          "asa class 3",
+          "asa class iii"
+        ]
+      },
+      {
+        "id": "murmur",
+        "section_id": "pre_anesthetic",
+        "any_of": [
+          "murmur"
+        ]
+      },
+      {
+        "id": "murmur-grade",
+        "section_id": null,
+        "any_of": [
+          "3/6",
+          "iii/vi",
+          "grade 3",
+          "grade iii"
+        ]
+      },
+      {
+        "id": "pimobendan",
+        "section_id": null,
+        "any_of": [
+          "pimobendan"
+        ]
+      },
+      {
+        "id": "pimobendan-dose",
+        "section_id": null,
+        "any_of": [
+          "1.25 mg",
+          "one and a quarter"
+        ]
+      },
+      {
+        "id": "weight-9-6",
+        "section_id": null,
+        "any_of": [
+          "9.6 kg"
+        ]
+      },
+      {
+        "id": "full-mouth-radiographs",
+        "section_id": null,
+        "any_of": [
+          "radiograph",
+          "x-ray",
+          "xray"
+        ]
+      },
+      {
+        "id": "preop-bloodwork",
+        "section_id": null,
+        "any_of": [
+          "bloodwork",
+          "blood work",
+          "blood panel"
+        ]
+      },
+      {
+        "id": "chest-xray",
+        "section_id": null,
+        "any_of": [
+          "chest x",
+          "thoracic"
+        ]
+      },
+      {
+        "id": "cardiologist-consult",
+        "section_id": null,
+        "any_of": [
+          "cardiologist"
+        ]
+      },
+      {
+        "id": "fractured-molar",
+        "section_id": "oral_findings",
+        "any_of": [
+          "fractured",
+          "fracture"
+        ]
+      },
+      {
+        "id": "gingivitis-grade-3",
+        "section_id": "oral_findings",
+        "any_of": [
+          "gingivitis"
+        ]
+      },
+      {
+        "id": "calculus",
+        "section_id": "oral_findings",
+        "any_of": [
+          "calculus",
+          "tartar"
+        ]
+      },
+      {
+        "id": "loose-incisors",
+        "section_id": null,
+        "any_of": [
+          "loose"
+        ]
+      },
+      {
+        "id": "extractions-anticipated",
+        "section_id": null,
+        "any_of": [
+          "extraction"
+        ]
+      },
+      {
+        "id": "nerve-blocks",
+        "section_id": "anesthesia",
+        "any_of": [
+          "nerve block",
+          "blocks"
+        ]
+      },
+      {
+        "id": "ecg-monitoring",
+        "section_id": "anesthesia",
+        "any_of": [
+          "ecg"
+        ]
+      },
+      {
+        "id": "soft-food-10-days",
+        "section_id": null,
+        "any_of": [
+          "soft food"
+        ]
+      },
+      {
+        "id": "fasting-from-midnight",
+        "section_id": null,
+        "any_of": [
+          "fast",
+          "midnight"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "id": "extractions-not-yet-done",
+        "any_of": [
+          "extracted",
+          "were removed",
+          "was removed"
+        ]
+      },
+      {
+        "id": "uneventful-recovery-invented",
+        "any_of": [
+          "uneventful",
+          "recovered well"
+        ]
+      },
+      {
+        "id": "unstated-analgesic",
+        "any_of": [
+          "meloxicam",
+          "carprofen",
+          "gabapentin",
+          "tramadol",
+          "buprenorphine"
+        ]
+      }
+    ],
+    "action_items": [
+      {
+        "id": "preop-diagnostics",
+        "any_of": [
+          "bloodwork",
+          "blood work",
+          "chest"
+        ]
+      },
+      {
+        "id": "call-cardiologist",
+        "any_of": [
+          "cardiologist"
+        ]
+      },
+      {
+        "id": "fasting-instructions",
+        "any_of": [
+          "fast",
+          "midnight"
+        ]
+      },
+      {
+        "id": "book-tuesday",
+        "any_of": [
+          "tuesday"
+        ]
+      }
+    ],
+    "fields": [],
+    "not_discussed": [],
+    "defaults_expected": [],
+    "review_flags": []
+  }
+}
