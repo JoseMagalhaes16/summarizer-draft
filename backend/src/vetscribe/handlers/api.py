@@ -13,6 +13,7 @@ from pydantic import BaseModel, ValidationError
 from vetscribe.config import Settings
 from vetscribe.container import get_container
 from vetscribe.domain.models import (
+    CreateManualNoteRequest,
     CreateNoteRequest,
     DuplicateRequest,
     Note,
@@ -103,6 +104,7 @@ def create_app(settings: Settings | None = None) -> APIGatewayHttpResolver:
             {
                 "status": "ok",
                 "llm_provider": s.llm_provider,
+                "ai_enabled": s.llm_provider != "none",
                 "storage": s.storage_backend,
                 "evals_allow_trigger": s.evals_allow_trigger,
             },
@@ -147,6 +149,12 @@ def create_app(settings: Settings | None = None) -> APIGatewayHttpResolver:
         req = body_model(CreateNoteRequest)
         note = get_container().note_service.create(clinic(), req)
         return _json(202, _note_json(note))
+
+    @app.post("/v1/notes/manual")
+    def create_manual_note() -> Response[str]:
+        req = body_model(CreateManualNoteRequest)
+        note = get_container().note_service.create_manual(clinic(), req)
+        return _json(201, _note_json(note, rendered=True))
 
     @app.get("/v1/notes")
     def list_notes() -> Response[str]:

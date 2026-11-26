@@ -33,6 +33,7 @@ SectionFormat = Literal["paragraph", "bullets", "key_value"]
 MissingBehavior = Literal["omit", "state_not_discussed", "use_normal_defaults"]
 Tone = Literal["clinical", "client_friendly"]
 NoteStatus = Literal["pending", "processing", "completed", "failed"]
+NoteSource = Literal["ai", "manual"]
 ErrorCode = Literal[
     "MODEL_REFUSAL",
     "OUTPUT_TRUNCATED",
@@ -185,6 +186,8 @@ class Note(_Model):
     status: NoteStatus = "pending"
     error: NoteError | None = None
     result: NoteResult | None = None
+    # How the note was created; stored notes without it read as "ai".
+    source: NoteSource = "ai"
     edited: bool = False
     model_info: ModelInfo | None = None
     created_at: str = Field(default_factory=utc_now_iso)
@@ -197,6 +200,7 @@ class NoteSummary(_Model):
     template_name: str
     patient: Patient
     status: NoteStatus
+    source: NoteSource = "ai"
     visit_summary: str | None = None
     created_at: str
     updated_at: str
@@ -210,6 +214,7 @@ class NoteSummary(_Model):
             template_name=note.template_name,
             patient=note.patient,
             status=note.status,
+            source=note.source,
             visit_summary=summary,
             created_at=note.created_at,
             updated_at=note.updated_at,
@@ -224,6 +229,22 @@ class CreateNoteRequest(_Model):
     transcript: str
     patient: Patient = Field(default_factory=Patient)
     clinician: Short120 = ""
+
+    @field_validator("transcript")
+    @classmethod
+    def _transcript_bytes(cls, v: str) -> str:
+        if len(v.encode("utf-8")) > MAX_TRANSCRIPT_BYTES:
+            raise ValueError(f"transcript exceeds {MAX_TRANSCRIPT_BYTES} bytes")
+        return v
+
+
+class CreateManualNoteRequest(_Model):
+    template_id: str = Field(min_length=1)
+    patient: Patient = Field(default_factory=Patient)
+    clinician: Short120 = ""
+    transcript: str = ""
+    result: NoteResult | None = None
+    prefill_defaults: bool = False
 
     @field_validator("transcript")
     @classmethod
