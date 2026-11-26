@@ -55,7 +55,7 @@ Makefile                 install / dev / test / lint / build / deploy targets
 | Var | Default | Meaning |
 |---|---|---|
 | `APP_ENV` | `local` | `local` \| `aws` |
-| `LLM_PROVIDER` | `mock` | `mock` \| `bedrock` |
+| `LLM_PROVIDER` | `mock` | `mock` \| `bedrock` \| `none` (AI switched off: manual notes only, §4.6) |
 | `STORAGE_BACKEND` | `memory` | `memory` \| `dynamodb` |
 | `LOCAL_DATA_FILE` | `` | if set with `memory`, persist to this JSON file |
 | `TABLE_NAME` | `` | DynamoDB table (required for `dynamodb`) |
@@ -133,6 +133,7 @@ Makefile                 install / dev / test / lint / build / deploy targets
   "generation_id": "<uuid4 hex>" | null,        // current generation attempt; new on create and on every regenerate
   "error": { "code": "MODEL_REFUSAL|OUTPUT_TRUNCATED|INVALID_MODEL_OUTPUT|LLM_ERROR|GENERATION_TIMEOUT|PAYLOAD_TOO_LARGE|INTERNAL", "message": "…" } | null,
   "result": NoteResult | null,
+  "source": "ai" | "manual",                    // how the note was created; stored notes without it read as "ai"
   "edited": false,                             // true after PATCH by user
   "model_info": { "provider": "bedrock|mock", "model_id": "…", "input_tokens": 0, "output_tokens": 0, "latency_ms": 0 } | null,
   "created_at": "…", "updated_at": "…"
@@ -169,6 +170,37 @@ Backend provides `render_note_markdown(result, template)` and `render_note_text(
 API returns `rendered_markdown` and `rendered_text` on `GET /v1/notes/{id}` when completed
 (used for "Copy to PIMS"). Rules: `omit`+not_discussed sections skipped; `state_not_discussed` → "Not discussed."; key_value → `Label: value` lines; bullets → `- item`.
 
+### 4.6 Manual notes (no AI)
+
+A vet can write a note by hand on any template, without a transcript or a model call.
+
+* `POST /v1/notes/manual` creates the note **already `completed`**, with `source: "manual"`,
+  `generation_id` set (a fresh uuid, so PATCH fencing works the same way), `model_info: null`,
+  `error: null`, and a `template_snapshot` like AI notes.
+* `result` is optional. If given, it is validated exactly like a PATCH result (same limits, same
+  section ids/order/formats/field keys as the template). If omitted, the server builds a blank
+  result from the template: every section empty with `not_discussed: true`, key-value fields with
+  empty values, `visit_summary: ""`, no follow-ups, no flags.
+* `prefill_defaults: true` (only meaningful without `result`) pre-fills every section whose
+  `missing_behavior` is `use_normal_defaults` and has non-empty `normal_defaults` (paragraph →
+  content, bullets → one item) and sets `used_defaults: true` + `not_discussed: false`, so the
+  same "Normal defaults — confirm" marker appears as for AI notes.
+* `transcript` is optional (reference text only; may be empty). If present, the same transcript
+  limits apply and it is stored like an AI note's transcript.
+* `edited` is `false` at creation; editing works through the normal PATCH.
+* Regenerate on a manual note → 409 `MANUAL_NOTE` (it would overwrite hand-written content). To get
+  an AI draft of the same visit, create a new AI note from the transcript ("Draft another note").
+* Review flags on manual notes: only what the vet typed; the post-processor's automatic flags are
+  not applied (no model output to check). Rendering and copy (`rendered_text`/`rendered_markdown`)
+  are identical to AI notes.
+* `NoteSummary` gains `source`.
+
+**AI switched off (`LLM_PROVIDER=none`).** `GET /v1/health` reports `"llm_provider": "none"` and
+`"ai_enabled": false` (`true` otherwise). `POST /v1/notes`, `POST /v1/notes/{id}/regenerate` and
+eval runs with provider `mock`/`bedrock` return **409 `AI_DISABLED`** ("AI drafting is switched off
+in this environment. Write the note manually."). Manual notes, templates, history, editing and
+copying keep working. Oracle/null eval runs still work (no model involved).
+
 ## 5. HTTP API (API Gateway HTTP API → API Lambda)
 
 Base path `/v1`. JSON in/out. Errors: `{"error": {"code": "...", "message": "...", "details": [...]?}}`.
@@ -182,15 +214,16 @@ Base path `/v1`. JSON in/out. Errors: `{"error": {"code": "...", "message": "...
 | PUT | `/v1/templates/{id}` | TemplateInput | 200 Template (version+1) | 400, 403 READ_ONLY (built-in), 404 |
 | DELETE | `/v1/templates/{id}` | – | 204 | 403 READ_ONLY, 404 |
 | POST | `/v1/templates/{id}/duplicate` | `{"name"?: str}` | 201 Template (custom copy, name default "<name> (copy)") | 404 |
-| POST | `/v1/notes` | `{"template_id", "transcript", "patient"?, "clinician"?}` | 202 Note (status=pending) | 400, 404 (template), 413 PAYLOAD_TOO_LARGE |
+| POST | `/v1/notes` | `{"template_id", "transcript", "patient"?, "clinician"?}` | 202 Note (status=pending) | 400, 404 (template), 409 AI_DISABLED, 413 PAYLOAD_TOO_LARGE |
+| POST | `/v1/notes/manual` | `{"template_id", "patient"?, "clinician"?, "transcript"?, "result"?: NoteResult, "prefill_defaults"?: bool}` | 201 Note (status=completed, source=manual) | 400, 404 (template), 413 PAYLOAD_TOO_LARGE |
 | GET | `/v1/notes` | `?limit=50` | 200 `{"items":[NoteSummary]}` newest first (stale pending/processing notes are reported as failed/`GENERATION_TIMEOUT`) | |
 | GET | `/v1/notes/{id}` | – | 200 Note (+`rendered_markdown`,`rendered_text` if completed) | 404 |
 | PATCH | `/v1/notes/{id}` | `{"result": NoteResult}` | 200 Note (`edited=true`) | 400 (incl. result not matching the note's template snapshot), 404, 409 NOT_COMPLETED, 409 NOTE_CHANGED (regenerated/changed concurrently), 413 PAYLOAD_TOO_LARGE |
-| POST | `/v1/notes/{id}/regenerate` | `{"template_id"?: str}` | 202 Note (status=pending, new `generation_id`, result cleared, edited=false) | 404, 409 GENERATION_IN_PROGRESS (status is pending/processing) |
+| POST | `/v1/notes/{id}/regenerate` | `{"template_id"?: str}` | 202 Note (status=pending, new `generation_id`, result cleared, edited=false) | 404, 409 GENERATION_IN_PROGRESS (status is pending/processing), 409 MANUAL_NOTE, 409 AI_DISABLED |
 | DELETE | `/v1/notes/{id}` | – | 204 | 404 |
 
 `TemplateInput` = Template without `id`, `is_builtin`, `version`, timestamps.
-`NoteSummary` = `{id, template_id, template_name, patient, status, visit_summary (or null), created_at, updated_at}`.
+`NoteSummary` = `{id, template_id, template_name, patient, status, source, visit_summary (or null), created_at, updated_at}`.
 
 Validation (all violations → 400 `VALIDATION_ERROR`):
 * transcript non-blank, ≤ `MAX_TRANSCRIPT_CHARS` chars **and** ≤ 300 000 UTF-8 bytes.
